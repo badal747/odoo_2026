@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import AuthHeroSlider from "@/components/AuthHeroSlider";
+import { AboutModal, DocumentationModal } from "@/components/AuthModals";
 
 const DEMO_PERSONAS = [
   { role: "System Admin", email: "admin@peoplepay.com", pass: "password123" },
@@ -36,6 +37,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showDemoDropdown, setShowDemoDropdown] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,19 +210,31 @@ export default function LoginPage() {
 
         {/* Bottom Footer Links */}
         <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100 pt-4">
-          <span className="flex items-center space-x-1 hover:text-slate-600 cursor-pointer transition-colors">
-            <Info className="w-3.5 h-3.5" />
-            <span>About PeoplePay360</span>
-          </span>
-          <span className="flex items-center space-x-1 hover:text-slate-600 cursor-pointer transition-colors">
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Payroll Documentation</span>
-          </span>
+          <button
+            type="button"
+            onClick={() => setIsAboutOpen(true)}
+            className="flex items-center space-x-1 hover:text-slate-900 transition-colors focus:outline-none"
+          >
+            <Info className="w-3.5 h-3.5 text-odoo-purple" />
+            <span className="font-medium">About PeoplePay360</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsDocsOpen(true)}
+            className="flex items-center space-x-1 hover:text-slate-900 transition-colors focus:outline-none"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-odoo-teal" />
+            <span className="font-medium">Payroll Documentation</span>
+          </button>
         </div>
       </div>
 
       {/* RIGHT SIDE: Auto-Rotating 5-Picture AI Hero Slider */}
       <AuthHeroSlider />
+
+      {/* Interactive Information & Documentation Modals */}
+      <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
+      <DocumentationModal isOpen={isDocsOpen} onClose={() => setIsDocsOpen(false)} />
     </div>
   );
 }

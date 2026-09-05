@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,78 +11,77 @@ import {
   CreditCard,
   Sliders,
   BarChart3,
-  CheckCircle2,
   LogOut,
-  ChevronDown,
-  ShieldCheck,
-  UserCheck
+  User as UserIcon,
 } from "lucide-react";
+import { useAuth, UserRole } from "@/lib/auth-context";
 import api from "@/lib/api";
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/", icon: BarChart3 },
-  { label: "Employees", href: "/employees", icon: Users },
-  { label: "Contracts", href: "/contracts", icon: FileText },
-  { label: "Attendance", href: "/attendance", icon: Clock },
-  { label: "Time Off", href: "/time-off", icon: Calendar },
-  { label: "Payroll", href: "/payroll", icon: CreditCard },
-  { label: "Salary Rules", href: "/config", icon: Sliders },
-];
+interface NavItem {
+  label: string;
+  href: string;
+  icon: any;
+  allowedRoles: UserRole[];
+}
 
-const PERSONAS = [
-  { role: "ADMIN", label: "System Admin (Full Access)" },
-  { role: "HR_MANAGER", label: "HR Manager (CRUD HR, Approvals)" },
-  { role: "HR_PAYROLL_MANAGER", label: "Payroll Manager (Full Payroll)" },
-  { role: "HR_PAYROLL_USER", label: "Payroll Officer (Compute/View)" },
-  { role: "EMPLOYEE", label: "Employee (Self Service)" },
+const ALL_NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", href: "/", icon: BarChart3, allowedRoles: ["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER", "EMPLOYEE"] },
+  { label: "Employees", href: "/employees", icon: Users, allowedRoles: ["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"] },
+  { label: "Contracts", href: "/contracts", icon: FileText, allowedRoles: ["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"] },
+  { label: "Attendance", href: "/attendance", icon: Clock, allowedRoles: ["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER", "EMPLOYEE"] },
+  { label: "Time Off", href: "/time-off", icon: Calendar, allowedRoles: ["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER", "EMPLOYEE"] },
+  { label: "Payroll", href: "/payroll", icon: CreditCard, allowedRoles: ["ADMIN", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"] },
+  { label: "Salary Rules", href: "/config", icon: Sliders, allowedRoles: ["ADMIN", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"] },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [currentRole, setCurrentRole] = useState("ADMIN");
-  const [currentName, setCurrentName] = useState("Alice Johnson");
-  const [isPersonaOpen, setIsPersonaOpen] = useState(false);
+  const { user, logout } = useAuth();
   const [checkedIn, setCheckedIn] = useState(false);
   const [attendanceMsg, setAttendanceMsg] = useState("");
 
-  useEffect(() => {
-    const savedRole = localStorage.getItem("peoplepay_role");
-    if (savedRole) setCurrentRole(savedRole);
-    const savedName = localStorage.getItem("peoplepay_name");
-    if (savedName) setCurrentName(savedName);
-  }, []);
+  // Don't render navigation menus on the login screen
+  if (pathname === "/login") {
+    return (
+      <header className="bg-white border-b border-odoo-border shadow-subtle py-3 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-odoo-purpleDark via-odoo-purple to-odoo-teal flex items-center justify-center text-white font-black text-base shadow-sm">
+              P
+            </div>
+            <span className="text-base font-bold tracking-tight text-slate-900">
+              PeoplePay<span className="text-odoo-purple">360</span>
+            </span>
+          </div>
+          <span className="text-xs text-slate-400 font-medium">Enterprise HR & Payroll Portal</span>
+        </div>
+      </header>
+    );
+  }
 
-  const handleSwitchPersona = async (role: string) => {
-    try {
-      const res = await api.post("/auth/demo-switch-user", { role });
-      localStorage.setItem("peoplepay_token", res.data.access_token);
-      localStorage.setItem("peoplepay_role", res.data.role);
-      const name = `${res.data.first_name || ""} ${res.data.last_name || ""}`.trim() || res.data.email;
-      localStorage.setItem("peoplepay_name", name);
-      setCurrentRole(res.data.role);
-      setCurrentName(name);
-      setIsPersonaOpen(false);
-      window.location.reload();
-    } catch (e) {
-      console.error("Error switching persona:", e);
-    }
-  };
+  // Filter navigation items strictly by active user's role
+  const visibleNavItems = ALL_NAV_ITEMS.filter((item) => {
+    if (!user) return false;
+    if (user.role === "ADMIN") return true;
+    return item.allowedRoles.includes(user.role);
+  });
 
   const handleQuickAttendance = async () => {
+    if (!user) return;
     try {
-      // Find Carol (emp003) or default employee
-      const empRes = await api.get("/employees");
-      if (empRes.data && empRes.data.length > 0) {
-        const emp = empRes.data[0];
-        if (!checkedIn) {
-          await api.post("/attendance/check-in", { employee_id: emp.id });
-          setCheckedIn(true);
-          setAttendanceMsg("Checked in at " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        } else {
-          await api.post("/attendance/check-out", { employee_id: emp.id });
-          setCheckedIn(false);
-          setAttendanceMsg("Checked out successfully");
-        }
+      const empId = user.employee_id;
+      if (!empId) {
+        setAttendanceMsg("No linked employee profile");
+        return;
+      }
+      if (!checkedIn) {
+        await api.post("/attendance/check-in", { employee_id: empId });
+        setCheckedIn(true);
+        setAttendanceMsg("Checked in at " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else {
+        await api.post("/attendance/check-out", { employee_id: empId });
+        setCheckedIn(false);
+        setAttendanceMsg("Checked out successfully");
       }
     } catch (err: any) {
       setAttendanceMsg(err?.response?.data?.detail || "Attendance recorded");
@@ -90,6 +89,8 @@ export default function Navbar() {
     }
     setTimeout(() => setAttendanceMsg(""), 4000);
   };
+
+  const displayName = `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || user?.email || "User";
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-odoo-border shadow-subtle">
@@ -102,15 +103,19 @@ export default function Navbar() {
                 P
               </div>
               <div>
-                <span className="text-lg font-bold tracking-tight text-slate-900">PeoplePay<span className="text-odoo-purple">360</span></span>
-                <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 text-[10px] font-semibold bg-odoo-purple/10 text-odoo-purple rounded">HR & Payroll</span>
+                <span className="text-lg font-bold tracking-tight text-slate-900">
+                  PeoplePay<span className="text-odoo-purple">360</span>
+                </span>
+                <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 text-[10px] font-semibold bg-odoo-purple/10 text-odoo-purple rounded">
+                  HR & Payroll
+                </span>
               </div>
             </Link>
           </div>
 
-          {/* Navigation Links */}
+          {/* Role-Filtered Navigation Links */}
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
@@ -130,61 +135,51 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Right Action Tools & Persona Switcher */}
+          {/* Right Action Tools & User Profile */}
           <div className="flex items-center space-x-3">
-            {/* Quick Check-in Button */}
-            <button
-              onClick={handleQuickAttendance}
-              title="Quick Check-In / Check-Out"
-              className={`hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                checkedIn
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{checkedIn ? "Check Out" : "Check In"}</span>
-            </button>
+            {/* Quick Attendance Check-in Button */}
+            {user?.employee_id && (
+              <button
+                onClick={handleQuickAttendance}
+                title="Quick Check-In / Check-Out"
+                className={`hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  checkedIn
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{checkedIn ? "Check Out" : "Check In"}</span>
+              </button>
+            )}
             {attendanceMsg && (
               <span className="text-xs text-emerald-600 font-medium animate-pulse">{attendanceMsg}</span>
             )}
 
-            {/* Persona Switcher Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsPersonaOpen(!isPersonaOpen)}
-                className="flex items-center space-x-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors text-xs font-medium text-slate-800"
-              >
-                <div className="w-6 h-6 rounded-full bg-odoo-purple text-white flex items-center justify-center text-[10px] font-bold">
-                  {currentName.charAt(0)}
-                </div>
-                <div className="text-left hidden sm:block">
-                  <p className="font-semibold text-[11px] leading-tight text-slate-900">{currentName}</p>
-                  <p className="text-[10px] text-odoo-purple font-medium">{currentRole}</p>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-              </button>
-
-              {isPersonaOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-floating py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="px-3 py-1.5 border-b border-slate-100">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Simulate Role (Demo)</p>
+            {/* Authenticated User Badge & Logout */}
+            {user && (
+              <div className="flex items-center space-x-3 pl-2 border-l border-slate-200">
+                <div className="flex items-center space-x-2">
+                  <div className="w-7 h-7 rounded-full bg-odoo-purple text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                    {displayName.charAt(0).toUpperCase()}
                   </div>
-                  {PERSONAS.map((p) => (
-                    <button
-                      key={p.role}
-                      onClick={() => handleSwitchPersona(p.role)}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-purple-50 transition-colors ${
-                        currentRole === p.role ? "font-bold text-odoo-purple bg-purple-50/60" : "text-slate-700"
-                      }`}
-                    >
-                      <span>{p.label}</span>
-                      {currentRole === p.role && <CheckCircle2 className="w-3.5 h-3.5 text-odoo-purple" />}
-                    </button>
-                  ))}
+                  <div className="text-left hidden sm:block">
+                    <p className="font-semibold text-xs leading-tight text-slate-900">{displayName}</p>
+                    <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-purple-50 text-odoo-purple border border-purple-100">
+                      {user.role}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <button
+                  onClick={logout}
+                  title="Sign Out"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

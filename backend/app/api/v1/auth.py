@@ -81,17 +81,17 @@ async def demo_switch_user(req: SwitchUserRequest):
         last_name=last_name
     )
 
-@router.get("/users")
-async def list_demo_users():
-    users = await User.find_all().to_list()
-    res = []
-    for u in users:
-        emp = await Employee.get(u.employee_id) if u.employee_id else None
-        res.append({
-            "id": str(u.id),
-            "email": u.email,
-            "role": u.role,
-            "employee_id": u.employee_id,
-            "name": f"{emp.first_name} {emp.last_name}" if emp else u.email
-        })
-    return res
+from app.api.deps import get_current_user
+
+@router.get("/me")
+async def get_my_profile(current_user: User = Depends(get_current_user)):
+    emp = await Employee.get(current_user.employee_id) if current_user.employee_id else None
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "role": current_user.role,
+        "employee_id": current_user.employee_id,
+        "first_name": emp.first_name if emp else "",
+        "last_name": emp.last_name if emp else ""
+    }
+

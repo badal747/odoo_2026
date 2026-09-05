@@ -39,6 +39,15 @@ class AuthResponse(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
+@router.get("/public-stats")
+async def get_public_stats():
+    active_count = await Employee.find(Employee.status == EmployeeStatus.ACTIVE).count()
+    return {
+        "active_employees_count": active_count,
+        "formatted_badge": f"{active_count} Active Employees" if active_count < 1000 else f"{active_count:,}+ Active Employees",
+        "status": "ONLINE"
+    }
+
 @router.post("/login", response_model=AuthResponse)
 async def login(req: LoginRequest):
     user = await User.find_one(User.email == req.email.lower())

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Sparkles, CreditCard, BarChart3, Clock, ShieldCheck, Trophy } from "lucide-react";
+import api from "@/lib/api";
 
 export const SLIDES = [
   {
@@ -48,6 +49,7 @@ export const SLIDES = [
 
 export default function AuthHeroSlider() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [activeEmployeesCount, setActiveEmployeesCount] = useState<number | null>(null);
 
   // Auto-cycle through the 5 slides every 4.5 seconds
   useEffect(() => {
@@ -58,8 +60,33 @@ export default function AuthHeroSlider() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch real-time active employees count and synchronize every 10 seconds
+  useEffect(() => {
+    const fetchLiveStats = async () => {
+      try {
+        const res = await api.get("/auth/public-stats");
+        if (res.data && typeof res.data.active_employees_count === "number") {
+          setActiveEmployeesCount(res.data.active_employees_count);
+        }
+      } catch (err) {
+        // Graceful fallback if network is temporarily unavailable
+      }
+    };
+
+    fetchLiveStats();
+    const statsPoll = setInterval(fetchLiveStats, 10000);
+    return () => clearInterval(statsPoll);
+  }, []);
+
   const slide = SLIDES[currentSlide];
   const IconComponent = slide.icon;
+
+  const formattedCount =
+    activeEmployeesCount !== null
+      ? activeEmployeesCount >= 100
+        ? `${activeEmployeesCount.toLocaleString()}+ Active Employees`
+        : `${activeEmployeesCount} Active Employee${activeEmployeesCount === 1 ? "" : "s"}`
+      : "Active Employees";
 
   return (
     <div className="hidden lg:flex lg:w-1/2 min-h-screen relative p-12 xl:p-16 flex-col justify-between overflow-hidden bg-slate-950 text-white select-none">
@@ -79,7 +106,7 @@ export default function AuthHeroSlider() {
       {/* Elegant Dark Gradient Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/50" />
 
-      {/* Top Row: Brand Badge + 1,500+ Employees Badge */}
+      {/* Top Row: Brand Badge + Real-Time Active Employees Badge */}
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex items-center space-x-2.5 px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm">
           <div className="w-6 h-6 rounded-lg bg-white text-slate-900 flex items-center justify-center font-black text-xs">
@@ -88,9 +115,9 @@ export default function AuthHeroSlider() {
           <span className="text-xs font-bold tracking-tight text-white">PeoplePay360</span>
         </div>
 
-        <div className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] text-amber-300 font-medium shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>1,500+ Active Employees</span>
+        <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] text-amber-300 font-medium shadow-sm transition-all">
+          <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+          <span>{formattedCount}</span>
         </div>
       </div>
 

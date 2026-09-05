@@ -21,7 +21,7 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user && pathname !== "/login") {
+    if (!loading && !user && pathname !== "/login" && pathname !== "/register") {
       router.push("/login");
     }
   }, [user, loading, pathname, router]);
@@ -37,8 +37,8 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // Allow unrestricted access to /login
-  if (pathname === "/login") {
+  // Allow unrestricted access to /login and /register
+  if (pathname === "/login" || pathname === "/register") {
     return <>{children}</>;
   }
 

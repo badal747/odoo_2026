@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
@@ -105,6 +106,19 @@ export default function LoginPage() {
             <span>{loading ? "Authenticating..." : "Sign In to Workspace"}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+
+          <div className="pt-2 text-center">
+            <p className="text-xs text-slate-500">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/register"
+                className="font-bold text-odoo-purple hover:underline inline-flex items-center space-x-1"
+              >
+                <span>Create Role-Based Account</span>
+                <ArrowRight className="w-3 h-3 inline" />
+              </Link>
+            </p>
+          </div>
         </form>
 
         {/* Quick Credentials Pre-fill Box for Demonstrations */}

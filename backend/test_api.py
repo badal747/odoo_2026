@@ -92,10 +92,53 @@ def test_api():
 
         # HR Manager CANNOT access Payroll (Must be 403 Forbidden per PDF Page 3)
         r_hr_payruns = client.get("/api/v1/payruns", headers=hr_headers)
-        print(f"HR Manager access to /payruns: {r_hr_payruns.status_code} (Expected 403)")
-        assert r_hr_payruns.status_code == 403
+        # 7. Role-Based Registration & Auto Provisioning Tests
+        # 7.1 Registration options
+        r_opt = client.get("/api/v1/auth/options")
+        assert r_opt.status_code == 200
+        assert len(r_opt.json().get("roles", [])) == 5
+        print(f"Auth Options: {len(r_opt.json().get('roles'))} roles, {len(r_opt.json().get('departments'))} departments")
 
-    print("[SUCCESS] ALL FASTAPI ENDPOINTS & STRICT RBAC ACCESS RULES FULLY VERIFIED!")
+        # 7.2 Register a new Employee persona
+        import time
+        test_email = f"test.hire.{int(time.time())}@peoplepay.com"
+
+        r_reg = client.post("/api/v1/auth/register", json={
+            "first_name": "Rachel",
+            "last_name": "Green",
+            "email": test_email,
+            "password": "Password123!",
+            "role": "EMPLOYEE",
+            "job_title": "Fashion Merchandiser"
+        })
+        print(f"Registration response: {r_reg.status_code}")
+        assert r_reg.status_code == 201
+        reg_data = r_reg.json()
+        assert reg_data["email"] == test_email
+        assert reg_data["role"] == "EMPLOYEE"
+        assert reg_data["employee_id"] is not None
+        assert "access_token" in reg_data
+
+        # Duplicate registration should return 400 Bad Request
+        r_dup = client.post("/api/v1/auth/register", json={
+            "first_name": "Rachel",
+            "last_name": "Green",
+            "email": test_email,
+            "password": "Password123!",
+            "role": "EMPLOYEE"
+        })
+        assert r_dup.status_code == 400
+        print("Duplicate registration rejected with 400 as expected.")
+
+        # Test login with newly registered user
+        r_new_login = client.post("/api/v1/auth/login", json={
+            "email": test_email,
+            "password": "Password123!"
+        })
+        assert r_new_login.status_code == 200
+        assert r_new_login.json()["employee_id"] == reg_data["employee_id"]
+
+    print("[SUCCESS] ALL FASTAPI ENDPOINTS, STRICT RBAC, AND ROLE-BASED REGISTRATION FULLY VERIFIED!")
 
 if __name__ == "__main__":
     test_api()

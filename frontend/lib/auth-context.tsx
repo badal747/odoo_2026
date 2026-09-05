@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 
 export type UserRole =
@@ -20,11 +20,23 @@ export interface AuthUser {
   last_name?: string;
 }
 
+export interface RegisterData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  department_id?: string;
+  job_title?: string;
+  phone?: string;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   hasRole: (roles: UserRole[]) => boolean;
 }
@@ -36,7 +48,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     // Restore session from localStorage on mount
@@ -47,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
-      } catch (e) {
+      } catch {
         localStorage.removeItem("peoplepay_token");
         localStorage.removeItem("peoplepay_user");
       }
@@ -57,6 +68,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const res = await api.post("/auth/login", { email, password });
+    const { access_token, user_id, role, employee_id, first_name, last_name } = res.data;
+
+    const userData: AuthUser = {
+      user_id,
+      email: res.data.email,
+      role: role as UserRole,
+      employee_id,
+      first_name,
+      last_name,
+    };
+
+    setToken(access_token);
+    setUser(userData);
+
+    localStorage.setItem("peoplepay_token", access_token);
+    localStorage.setItem("peoplepay_user", JSON.stringify(userData));
+    localStorage.setItem("peoplepay_role", role);
+    localStorage.setItem("peoplepay_name", `${first_name || ""} ${last_name || ""}`.trim() || res.data.email);
+
+    router.push("/");
+  };
+
+  const register = async (data: RegisterData) => {
+    const res = await api.post("/auth/register", data);
     const { access_token, user_id, role, employee_id, first_name, last_name } = res.data;
 
     const userData: AuthUser = {
@@ -96,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, hasRole }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

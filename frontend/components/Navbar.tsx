@@ -42,8 +42,8 @@ export default function Navbar() {
   const [attendanceMsg, setAttendanceMsg] = useState("");
   const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
 
-  // Don't render navigation menus on the login screen
-  if (pathname === "/login") {
+  // Don't render navigation menus on the login and register screens
+  if (pathname === "/login" || pathname === "/register") {
     return (
       <header className="bg-white border-b border-odoo-border shadow-subtle py-3 px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">

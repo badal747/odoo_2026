@@ -12,13 +12,11 @@ import {
   Sliders,
   BarChart3,
   LogOut,
-  Compass,
   Menu,
   X,
 } from "lucide-react";
 import { useAuth, UserRole } from "@/lib/auth-context";
 import api from "@/lib/api";
-import DemoTourModal from "@/components/DemoTourModal";
 
 interface NavItem {
   label: string;
@@ -40,15 +38,53 @@ const ALL_NAV_ITEMS: NavItem[] = [
 export default function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const [checkedIn, setCheckedIn] = useState(false);
+  const [attendanceState, setAttendanceState] = useState<{
+    checkedIn: boolean;
+    checkedOut: boolean;
+    checkInTime?: string;
+    checkOutTime?: string;
+    workedHours?: number;
+  }>({
+    checkedIn: false,
+    checkedOut: false,
+  });
   const [attendanceMsg, setAttendanceMsg] = useState("");
-  const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Close mobile menu on route change
   React.useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
+
+  // Synchronize real-time today attendance status
+  const syncAttendanceStatus = async () => {
+    if (!user?.employee_id) return;
+    try {
+      const today = new Date().toLocaleDateString("en-CA");
+      const res = await api.get("/attendance/status", { params: { date: today } });
+      if (res.data && res.data.has_record) {
+        setAttendanceState({
+          checkedIn: res.data.checked_in,
+          checkedOut: res.data.checked_out,
+          checkInTime: res.data.check_in ? new Date(res.data.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+          checkOutTime: res.data.check_out ? new Date(res.data.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+          workedHours: res.data.worked_hours,
+        });
+      } else {
+        setAttendanceState({ checkedIn: false, checkedOut: false });
+      }
+    } catch {
+      // Ignore if status endpoint unreachable
+    }
+  };
+
+  React.useEffect(() => {
+    syncAttendanceStatus();
+    const handleAttendanceUpdate = () => syncAttendanceStatus();
+    window.addEventListener("attendance-updated", handleAttendanceUpdate);
+    return () => window.removeEventListener("attendance-updated", handleAttendanceUpdate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.employee_id]);
 
   // Don't render navigation menus on the login and register screens
   if (pathname === "/login" || pathname === "/register") {
@@ -84,21 +120,37 @@ export default function Navbar() {
       setTimeout(() => setAttendanceMsg(""), 3000);
       return;
     }
-    const previousState = checkedIn;
-    // Instant 0ms optimistic visual response
-    setCheckedIn(!previousState);
-    setAttendanceMsg(!previousState ? "Checked in (updating...)" : "Checked out (updating...)");
+    const todayStr = new Date().toLocaleDateString("en-CA");
+
     try {
-      if (!previousState) {
-        await api.post("/attendance/check-in", { employee_id: empId });
+      if (!attendanceState.checkedIn) {
+        setAttendanceMsg("Checking in...");
+        await api.post("/attendance/check-in", { employee_id: empId, date: todayStr });
+        setAttendanceState((prev) => ({
+          ...prev,
+          checkedIn: true,
+          checkedOut: false,
+          checkInTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }));
         setAttendanceMsg("Checked in at " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        window.dispatchEvent(new Event("attendance-updated"));
+      } else if (!attendanceState.checkedOut) {
+        setAttendanceMsg("Checking out...");
+        const res = await api.post("/attendance/check-out", { employee_id: empId, date: todayStr });
+        const hours = res.data?.worked_hours || 0;
+        setAttendanceState((prev) => ({
+          ...prev,
+          checkedOut: true,
+          workedHours: hours,
+        }));
+        setAttendanceMsg(`Checked out (${hours} hrs)`);
+        window.dispatchEvent(new Event("attendance-updated"));
       } else {
-        await api.post("/attendance/check-out", { employee_id: empId });
-        setAttendanceMsg("Checked out successfully");
+        setAttendanceMsg("Shift completed for today");
       }
     } catch (err: any) {
-      setCheckedIn(previousState);
-      setAttendanceMsg(err?.response?.data?.detail || "Attendance updated");
+      setAttendanceMsg(err?.response?.data?.detail || "Attendance action failed");
+      syncAttendanceStatus();
     }
     setTimeout(() => setAttendanceMsg(""), 4000);
   };
@@ -151,29 +203,39 @@ export default function Navbar() {
 
           {/* Right Action Tools & User Profile */}
           <div className="flex items-center space-x-3">
-            {/* Hackathon Demo Tour Guide Button (Solid Black Button) */}
-            <button
-              onClick={() => setIsDemoTourOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-black hover:bg-slate-800 text-white shadow-sm transition-all"
-              title="Hackathon Demo & Scenario Guide"
-            >
-              <Compass className="w-3.5 h-3.5 text-white" />
-              <span>Demo Guide</span>
-            </button>
-
-            {/* Quick Attendance Check-in Button */}
+            {/* Quick Attendance Check-in / Check-out Button */}
             {user?.employee_id && (
               <button
                 onClick={handleQuickAttendance}
-                title="Quick Check-In / Check-Out"
-                className={`hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  checkedIn
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
+                title={
+                  attendanceState.checkedOut
+                    ? `Shift completed for today (${attendanceState.workedHours || 0} hrs)`
+                    : attendanceState.checkedIn
+                    ? `Checked in at ${attendanceState.checkInTime || ""}. Click to Check Out.`
+                    : "Click to Check In for today"
+                }
+                className={`hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${
+                  attendanceState.checkedOut
+                    ? "bg-purple-50 text-purple-700 border border-purple-200 cursor-default"
+                    : attendanceState.checkedIn
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100 shadow-sm"
                     : "bg-black hover:bg-slate-800 text-white shadow-sm"
                 }`}
               >
-                <Clock className={`w-3.5 h-3.5 ${checkedIn ? "text-emerald-600" : "text-white"}`} />
-                <span>{checkedIn ? "Check Out" : "Check In"}</span>
+                <Clock className={`w-3.5 h-3.5 ${
+                  attendanceState.checkedOut
+                    ? "text-purple-600"
+                    : attendanceState.checkedIn
+                    ? "text-emerald-600"
+                    : "text-white"
+                }`} />
+                <span>
+                  {attendanceState.checkedOut
+                    ? `Checked Out (${attendanceState.workedHours || 0}h)`
+                    : attendanceState.checkedIn
+                    ? `Check Out (${attendanceState.checkInTime || ""})`
+                    : "Check In"}
+                </span>
               </button>
             )}
             {attendanceMsg && (
@@ -252,13 +314,27 @@ export default function Navbar() {
                     setIsMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    checkedIn
+                    attendanceState.checkedOut
+                      ? "bg-purple-50 text-purple-700 border border-purple-200"
+                      : attendanceState.checkedIn
                       ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
                       : "bg-black text-white"
                   }`}
                 >
-                  <Clock className={`w-3.5 h-3.5 ${checkedIn ? "text-emerald-600" : "text-white"}`} />
-                  <span>{checkedIn ? "Check Out Now" : "Check In Now"}</span>
+                  <Clock className={`w-3.5 h-3.5 ${
+                    attendanceState.checkedOut
+                      ? "text-purple-600"
+                      : attendanceState.checkedIn
+                      ? "text-emerald-600"
+                      : "text-white"
+                  }`} />
+                  <span>
+                    {attendanceState.checkedOut
+                      ? `Shift Completed (${attendanceState.workedHours || 0} hrs)`
+                      : attendanceState.checkedIn
+                      ? `Check Out Now (${attendanceState.checkInTime || ""})`
+                      : "Check In Now"}
+                  </span>
                 </button>
               )}
 
@@ -276,7 +352,6 @@ export default function Navbar() {
           </div>
         )}
       </div>
-      <DemoTourModal isOpen={isDemoTourOpen} onClose={() => setIsDemoTourOpen(false)} />
     </header>
   );
 }

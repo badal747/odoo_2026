@@ -9,9 +9,11 @@ router = APIRouter(prefix="/attendance", tags=["Attendance Tracking"])
 
 class CheckInRequest(BaseModel):
     employee_id: str
+    date: Optional[str] = None
 
 class CheckOutRequest(BaseModel):
     employee_id: str
+    date: Optional[str] = None
 
 class ManualCorrectionRequest(BaseModel):
     check_in: datetime
@@ -19,6 +21,57 @@ class ManualCorrectionRequest(BaseModel):
     status: AttendanceStatus
     manual_edit_note: str
     edited_by_user_id: Optional[str] = "admin"
+
+@router.get("/status")
+async def get_attendance_status(
+    employee_id: Optional[str] = None,
+    date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    emp_id = employee_id or current_user.employee_id
+    if not emp_id:
+        return {"has_record": False, "checked_in": False, "checked_out": False}
+
+    if date and date != "ALL":
+        try:
+            cleaned = date.split("T")[0]
+            d_parts = [int(p) for p in cleaned.split("-")]
+            day_start = datetime(d_parts[0], d_parts[1], d_parts[2], 0, 0, 0)
+            day_end = datetime(d_parts[0], d_parts[1], d_parts[2], 23, 59, 59, 999999)
+        except Exception:
+            now = datetime.utcnow()
+            day_start = datetime(now.year, now.month, now.day, 0, 0, 0)
+            day_end = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
+    else:
+        now = datetime.utcnow()
+        day_start = datetime(now.year, now.month, now.day, 0, 0, 0)
+        day_end = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
+
+    record = await Attendance.find_one(
+        Attendance.employee_id == emp_id,
+        Attendance.date >= day_start,
+        Attendance.date <= day_end
+    )
+    if not record:
+        # Fallback check for any active un-checked-out attendance
+        record = await Attendance.find_one(
+            Attendance.employee_id == emp_id,
+            Attendance.check_out == None
+        )
+
+    if not record:
+        return {"has_record": False, "checked_in": False, "checked_out": False}
+
+    return {
+        "has_record": True,
+        "checked_in": True,
+        "checked_out": record.check_out is not None,
+        "check_in": record.check_in.isoformat() if record.check_in else None,
+        "check_out": record.check_out.isoformat() if record.check_out else None,
+        "worked_hours": record.worked_hours,
+        "status": record.status,
+        "id": str(record.id)
+    }
 
 @router.get("")
 async def list_attendances(
@@ -75,18 +128,28 @@ async def check_in(req: CheckInRequest, current_user: User = Depends(get_current
         emp_id = current_user.employee_id
 
     now = datetime.utcnow()
-    today_start = datetime(now.year, now.month, now.day)
+    if req.date:
+        try:
+            d_parts = [int(p) for p in req.date.split("T")[0].split("-")]
+            today_start = datetime(d_parts[0], d_parts[1], d_parts[2], 0, 0, 0)
+            today_end = datetime(d_parts[0], d_parts[1], d_parts[2], 23, 59, 59, 999999)
+        except Exception:
+            today_start = datetime(now.year, now.month, now.day, 0, 0, 0)
+            today_end = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
+    else:
+        today_start = datetime(now.year, now.month, now.day, 0, 0, 0)
+        today_end = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
 
     # Check if already checked in today
     existing = await Attendance.find_one(
         Attendance.employee_id == emp_id,
-        Attendance.date == today_start
+        Attendance.date >= today_start,
+        Attendance.date <= today_end
     )
     if existing:
         raise HTTPException(status_code=400, detail="Already checked in for today")
 
     # Evaluate late status (Schedule default starts at 09:00, grace period until 09:15)
-    # Using local hour/minute comparison
     is_late = (now.hour > 9) or (now.hour == 9 and now.minute > 15)
     status = AttendanceStatus.LATE if is_late else AttendanceStatus.PRESENT
 
@@ -109,12 +172,30 @@ async def check_out(req: CheckOutRequest, current_user: User = Depends(get_curre
         emp_id = current_user.employee_id
 
     now = datetime.utcnow()
-    today_start = datetime(now.year, now.month, now.day)
+    if req.date:
+        try:
+            d_parts = [int(p) for p in req.date.split("T")[0].split("-")]
+            today_start = datetime(d_parts[0], d_parts[1], d_parts[2], 0, 0, 0)
+            today_end = datetime(d_parts[0], d_parts[1], d_parts[2], 23, 59, 59, 999999)
+        except Exception:
+            today_start = datetime(now.year, now.month, now.day, 0, 0, 0)
+            today_end = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
+    else:
+        today_start = datetime(now.year, now.month, now.day, 0, 0, 0)
+        today_end = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
 
     record = await Attendance.find_one(
         Attendance.employee_id == emp_id,
-        Attendance.date == today_start
+        Attendance.date >= today_start,
+        Attendance.date <= today_end
     )
+    if not record:
+        # Fallback to any active open check-in
+        record = await Attendance.find_one(
+            Attendance.employee_id == emp_id,
+            Attendance.check_out == None
+        )
+
     if not record:
         raise HTTPException(status_code=400, detail="No check-in record found for today")
     if record.check_out:

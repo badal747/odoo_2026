@@ -7,6 +7,7 @@ import {
   Calendar,
   Edit2,
   X,
+  CheckCircle2,
 } from "lucide-react";
 import api from "@/lib/api";
 import { formatDate } from "@/lib/utils";
@@ -29,6 +30,21 @@ function AttendanceContent() {
   const [attendances, setAttendances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Today's Check In / Check Out Status for logged in user
+  const [todayStatus, setTodayStatus] = useState<{
+    checkedIn: boolean;
+    checkedOut: boolean;
+    checkInTime?: string;
+    checkOutTime?: string;
+    workedHours?: number;
+    loading: boolean;
+  }>({
+    checkedIn: false,
+    checkedOut: false,
+    loading: false,
+  });
+  const [actionMsg, setActionMsg] = useState("");
+
   // Manual Correction Modal
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
@@ -38,6 +54,39 @@ function AttendanceContent() {
     status: "PRESENT",
     manual_edit_note: "",
   });
+
+  const fetchTodayStatus = async () => {
+    if (!user?.employee_id) return;
+    try {
+      setTodayStatus((prev) => ({ ...prev, loading: true }));
+      const res = await api.get("/attendance/status", { params: { date: todayStr } });
+      if (res.data && res.data.has_record) {
+        setTodayStatus({
+          checkedIn: res.data.checked_in,
+          checkedOut: res.data.checked_out,
+          checkInTime: res.data.check_in ? new Date(res.data.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+          checkOutTime: res.data.check_out ? new Date(res.data.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+          workedHours: res.data.worked_hours,
+          loading: false,
+        });
+      } else {
+        setTodayStatus({ checkedIn: false, checkedOut: false, loading: false });
+      }
+    } catch {
+      setTodayStatus({ checkedIn: false, checkedOut: false, loading: false });
+    }
+  };
+
+  useEffect(() => {
+    fetchTodayStatus();
+    const handleUpdate = () => {
+      fetchTodayStatus();
+      fetchData();
+    };
+    window.addEventListener("attendance-updated", handleUpdate);
+    return () => window.removeEventListener("attendance-updated", handleUpdate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.employee_id]);
 
   useEffect(() => {
     fetchData();
@@ -58,6 +107,37 @@ function AttendanceContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickCheckIn = async () => {
+    if (!user?.employee_id) return;
+    try {
+      setActionMsg("Checking in...");
+      await api.post("/attendance/check-in", { employee_id: user.employee_id, date: todayStr });
+      setActionMsg("Successfully checked in!");
+      window.dispatchEvent(new Event("attendance-updated"));
+      fetchTodayStatus();
+      fetchData();
+    } catch (err: any) {
+      setActionMsg(err?.response?.data?.detail || "Check-in failed");
+    }
+    setTimeout(() => setActionMsg(""), 4000);
+  };
+
+  const handleQuickCheckOut = async () => {
+    if (!user?.employee_id) return;
+    try {
+      setActionMsg("Checking out...");
+      const res = await api.post("/attendance/check-out", { employee_id: user.employee_id, date: todayStr });
+      const hours = res.data?.worked_hours || 0;
+      setActionMsg(`Successfully checked out! (${hours} hrs worked)`);
+      window.dispatchEvent(new Event("attendance-updated"));
+      fetchTodayStatus();
+      fetchData();
+    } catch (err: any) {
+      setActionMsg(err?.response?.data?.detail || "Check-out failed");
+    }
+    setTimeout(() => setActionMsg(""), 4000);
   };
 
   const handleOpenEdit = (record: any) => {
@@ -112,6 +192,75 @@ function AttendanceContent() {
           </a>
         )}
       </div>
+
+      {/* User's Direct Attendance Action Card (Check In & Check Out) */}
+      {user?.employee_id && (
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3.5">
+            <div
+              className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm ${
+                todayStatus.checkedOut
+                  ? "bg-purple-50 text-purple-700 border border-purple-200"
+                  : todayStatus.checkedIn
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-slate-100 text-slate-700 border border-slate-200"
+              }`}
+            >
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-sm font-bold text-slate-900">Your Attendance Today</h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {formatDate(todayStr)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {todayStatus.checkedOut
+                  ? `Shift completed • Total ${todayStatus.workedHours || 0} hours recorded today`
+                  : todayStatus.checkedIn
+                  ? `Checked In at ${todayStatus.checkInTime || "today"} • Active on shift. Remember to Check Out when done!`
+                  : "You have not checked in for today yet."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {actionMsg && (
+              <span className="text-xs font-semibold text-emerald-600 animate-pulse bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                {actionMsg}
+              </span>
+            )}
+
+            {!todayStatus.checkedIn && (
+              <button
+                onClick={handleQuickCheckIn}
+                className="px-4 py-2 bg-black hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center space-x-1.5 transition-all active:scale-95"
+              >
+                <Clock className="w-4 h-4 text-white" />
+                <span>Check In for Today</span>
+              </button>
+            )}
+
+            {todayStatus.checkedIn && !todayStatus.checkedOut && (
+              <button
+                onClick={handleQuickCheckOut}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center space-x-1.5 transition-all active:scale-95"
+              >
+                <Clock className="w-4 h-4 text-white" />
+                <span>Check Out Now</span>
+              </button>
+            )}
+
+            {todayStatus.checkedOut && (
+              <span className="px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Shift Completed ({todayStatus.workedHours || 0} hrs)</span>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Interactive Calendar Date Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">

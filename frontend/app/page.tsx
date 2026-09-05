@@ -13,7 +13,6 @@ import {
   DollarSign,
   Filter,
   RotateCcw,
-  Compass,
   Clock,
   Timer,
   AlertCircle,
@@ -34,7 +33,6 @@ import {
 import api from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
-import DemoTourModal from "@/components/DemoTourModal";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -67,7 +65,6 @@ export default function DashboardPage() {
   const [selectedType, setSelectedType] = useState("ALL");
 
   const [loading, setLoading] = useState(true);
-  const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
 
   const [lastSyncedTime, setLastSyncedTime] = useState<string>("");
   const [liveClock, setLiveClock] = useState<string>("");
@@ -164,13 +161,6 @@ export default function DashboardPage() {
                 <span>Real-Time Operations</span>
                 {loading && <span className="text-[10px] text-slate-400 font-normal">(Syncing...)</span>}
               </div>
-              <button
-                onClick={() => setIsDemoTourOpen(true)}
-                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-black hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all"
-              >
-                <Compass className="w-3.5 h-3.5 text-white" />
-                <span>Demo Guide</span>
-              </button>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
             <p className="text-xs text-slate-500 leading-relaxed">
@@ -652,9 +642,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Demo Tour Modal Component */}
-      <DemoTourModal isOpen={isDemoTourOpen} onClose={() => setIsDemoTourOpen(false)} />
     </div>
   );
 }

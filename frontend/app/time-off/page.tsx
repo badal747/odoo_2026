@@ -15,8 +15,9 @@ import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 function TimeOffContent() {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const canManageLeaves = hasRole(["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER"]);
+  const isEmployee = user?.role === "EMPLOYEE";
 
   const searchParams = useSearchParams();
   const filterEmployeeId = searchParams.get("employee_id");
@@ -37,7 +38,7 @@ function TimeOffContent() {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [reqError, setReqError] = useState("");
   const [reqForm, setReqForm] = useState({
-    employee_id: filterEmployeeId || "",
+    employee_id: filterEmployeeId || user?.employee_id || "",
     time_off_type_id: "",
     start_date: todayStr,
     end_date: todayStr,
@@ -48,7 +49,7 @@ function TimeOffContent() {
   // New Allocation Modal
   const [isAllocModalOpen, setIsAllocModalOpen] = useState(false);
   const [allocForm, setAllocForm] = useState({
-    employee_id: filterEmployeeId || "",
+    employee_id: filterEmployeeId || user?.employee_id || "",
     time_off_type_id: "",
     allocated_units: 10,
     valid_from: `${curYear}-01-01`,
@@ -111,9 +112,21 @@ function TimeOffContent() {
   const handleCreateRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setReqError("");
+
+    // For EMPLOYEE role, always use their own employee_id
+    const submitEmployeeId = isEmployee
+      ? (user?.employee_id || reqForm.employee_id)
+      : reqForm.employee_id;
+
+    if (!submitEmployeeId) {
+      setReqError("Please select an employee.");
+      return;
+    }
+
     try {
       await api.post("/time-off/requests", {
         ...reqForm,
+        employee_id: submitEmployeeId,
         start_date: new Date(reqForm.start_date).toISOString(),
         end_date: new Date(reqForm.end_date).toISOString(),
         duration_units: Number(reqForm.duration_units),
@@ -408,22 +421,31 @@ function TimeOffContent() {
             )}
 
             <form onSubmit={handleCreateRequest} className="p-6 space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold mb-1">Employee *</label>
-                <select
-                  required
-                  value={reqForm.employee_id}
-                  onChange={(e) => setReqForm({ ...reqForm, employee_id: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  <option value="">Select Employee</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.first_name} {e.last_name} ({e.employee_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isEmployee ? (
+                <div>
+                  <label className="block font-semibold mb-1">Employee</label>
+                  <div className="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-medium">
+                    {user?.first_name} {user?.last_name}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block font-semibold mb-1">Employee *</label>
+                  <select
+                    required
+                    value={reqForm.employee_id}
+                    onChange={(e) => setReqForm({ ...reqForm, employee_id: e.target.value })}
+                    className="w-full p-2 border rounded-lg"
+                  >
+                    <option value="">Select Employee</option>
+                    {employees.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.first_name} {e.last_name} ({e.employee_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block font-semibold mb-1">Leave Type *</label>

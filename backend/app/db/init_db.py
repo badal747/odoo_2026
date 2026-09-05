@@ -1,7 +1,15 @@
 import certifi
+import dns.resolver
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from app.core.config import settings
+
+# Ensure fast and reliable DNS resolution for MongoDB Atlas SRV connection on Windows
+try:
+    dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
+    dns.resolver.default_resolver.nameservers = ['8.8.8.8', '1.1.1.1', '8.8.4.4']
+except Exception:
+    pass
 from app.models.models import (
     User,
     Department,

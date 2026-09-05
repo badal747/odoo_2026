@@ -19,7 +19,8 @@ import {
   Eye,
   Sparkles,
   FileCheck,
-  Check
+  Check,
+  FileSpreadsheet
 } from "lucide-react";
 import api from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -240,6 +241,26 @@ export default function PayrollPage() {
     }
   };
 
+  // ---------------- EXPORT PAYROLL REGISTER CSV (PDF Page 8 & 10) ----------------
+  const handleExportCSV = async () => {
+    if (!selectedPayrun) return;
+    try {
+      const response = await api.get(`/payruns/${selectedPayrun.id}/export-csv`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const cleanName = selectedPayrun.name.replace(/\s+/g, "_").replace(/\//g, "_");
+      link.setAttribute("download", `Payroll_Register_${cleanName}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Failed to export CSV register");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -380,6 +401,16 @@ export default function PayrollPage() {
                       <span>Send Payslips (Bulk Email)</span>
                     </button>
                   )}
+
+                  {/* Export Corporate Bank Transfer / Payroll Register CSV */}
+                  <button
+                    onClick={handleExportCSV}
+                    className="px-3.5 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-xs flex items-center space-x-1.5 transition-colors"
+                    title="Export corporate Bank Transfer / Payroll Register CSV"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Export CSV Register</span>
+                  </button>
                 </div>
               </div>
 

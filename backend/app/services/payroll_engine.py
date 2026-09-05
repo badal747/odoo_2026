@@ -93,6 +93,9 @@ def evaluate_salary_rules(
 
     gross_val = round(basic_val + allowances_val, 2)
     if not has_net_rule:
-        net_val = max(0.0, round(gross_val - deductions_val, 2))
+        net_val = round(gross_val - deductions_val, 2)
+
+    # Edge Case C3 (PDF Page 8): Strict Negative Net Salary Prevention
+    net_val = max(0.0, net_val)
 
     return lines, round(basic_val, 2), gross_val, round(deductions_val, 2), round(net_val, 2)

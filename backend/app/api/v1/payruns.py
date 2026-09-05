@@ -1,7 +1,9 @@
 import uuid
+import csv
+import io
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Response
 from pydantic import BaseModel
 from app.api.deps import require_roles
 from app.models.models import (
@@ -221,6 +223,24 @@ async def compute_payrun(id: str):
             # Fallback to standard working days (22 days) if not recorded
             worked_days = 22.0
 
+        # Edge Case C1 (PDF Page 8): Mid-Month Joiner Prorated Calculation
+        joiner_warning = None
+        if contract.start_date > payrun.period_start and contract.start_date <= payrun.period_end:
+            period_total_days = max(1, (payrun.period_end - payrun.period_start).days + 1)
+            active_days = max(1, (payrun.period_end - contract.start_date).days + 1)
+            ratio = min(1.0, active_days / period_total_days)
+            worked_days = round(22.0 * ratio, 1)
+            joiner_warning = f"Mid-month joiner: Prorated to {worked_days} days (Joined {contract.start_date.strftime('%d-%b-%Y')})"
+
+        # Edge Case C1: Mid-Month Departure Prorated Calculation
+        leaver_warning = None
+        if contract.end_date and contract.end_date >= payrun.period_start and contract.end_date < payrun.period_end:
+            period_total_days = max(1, (payrun.period_end - payrun.period_start).days + 1)
+            active_days = max(1, (contract.end_date - payrun.period_start).days + 1)
+            ratio = min(1.0, active_days / period_total_days)
+            worked_days = round(22.0 * ratio, 1)
+            leaver_warning = f"Mid-month departure: Prorated to {worked_days} days (Contract ends {contract.end_date.strftime('%d-%b-%Y')})"
+
         # 2. Unpaid leaves calculation
         unpaid_requests = await TimeOffRequest.find(
             TimeOffRequest.employee_id == slip.employee_id,
@@ -231,8 +251,6 @@ async def compute_payrun(id: str):
 
         unpaid_days = 0.0
         for ur in unpaid_requests:
-            type_obj = await ur.get_link("time_off_type_id") if hasattr(ur, "get_link") else None
-            # Or fetch directly
             from app.models.models import TimeOffType
             tot = await TimeOffType.get(ur.time_off_type_id)
             if tot and not tot.is_paid:
@@ -249,16 +267,20 @@ async def compute_payrun(id: str):
 
         # 4. Pre-Validation Warnings Audit
         warnings = []
+        if joiner_warning:
+            warnings.append(joiner_warning)
+        if leaver_warning:
+            warnings.append(leaver_warning)
         if not emp.bank_details or not emp.bank_details.account_number:
             warnings.append("Missing bank account number")
         if not emp.bank_details or not emp.bank_details.pan_or_tax_id:
             warnings.append("Missing PAN / Tax ID")
         if len(attendances) == 0:
             warnings.append("Zero attendance entries recorded for period")
-        if contract.end_date and contract.end_date <= payrun.period_end:
+        if contract.end_date and contract.end_date <= payrun.period_end and not leaver_warning:
             warnings.append(f"Contract expires on {contract.end_date.strftime('%Y-%m-%d')}")
-        if deductions > gross:
-            warnings.append("Warning: Deductions exceed gross earnings")
+        if deductions >= gross:
+            warnings.append(f"Negative salary prevented: Total deductions (₹{deductions:,.2f}) exceeded gross earnings (₹{gross:,.2f}). Net clamped to ₹0.00.")
 
         slip.worked_days = worked_days
         slip.unpaid_leave_days = unpaid_days
@@ -345,3 +367,80 @@ async def send_payslips_email(id: str, background_tasks: BackgroundTasks):
         "status": "DELIVERED",
         "dispatched_emails": dispatched
     }
+
+@router.get("/{id}/export-csv")
+async def export_payroll_register_csv(id: str):
+    """
+    Exports complete Payroll Register / Bank Bulk Disbursement CSV report (PDF Page 8 & 10).
+    """
+    payrun = await Payrun.get(id)
+    if not payrun:
+        raise HTTPException(status_code=404, detail="Payrun not found")
+
+    payslips = await Payslip.find(Payslip.payrun_id == id).to_list()
+    emp_map = {str(e.id): e for e in await Employee.find_all().to_list()}
+    from app.models.models import Department
+    dept_map = {str(d.id): d.name for d in await Department.find_all().to_list()}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow([
+        "Slip Number",
+        "Employee Code",
+        "Employee Name",
+        "Department",
+        "Bank Name",
+        "Account Number",
+        "IFSC / Swift",
+        "PAN / Tax ID",
+        "Worked Days",
+        "Unpaid Leave Days",
+        "Basic Salary (INR)",
+        "Gross Earnings (INR)",
+        "Total Deductions (INR)",
+        "Net Payable (INR)",
+        "Batch Status",
+        "Audit Warnings"
+    ])
+
+    for slip in payslips:
+        emp = emp_map.get(slip.employee_id)
+        dept_name = dept_map.get(emp.department_id, "N/A") if emp else "N/A"
+        bank_name = emp.bank_details.bank_name if (emp and emp.bank_details) else "N/A"
+        acc_no = f"'{emp.bank_details.account_number}" if (emp and emp.bank_details and emp.bank_details.account_number) else "MISSING"
+        ifsc = emp.bank_details.ifsc_or_swift if (emp and emp.bank_details) else "N/A"
+        pan = emp.bank_details.pan_or_tax_id if (emp and emp.bank_details) else "MISSING"
+        warnings_str = " | ".join(slip.warnings) if slip.warnings else "VERIFIED"
+
+        writer.writerow([
+            slip.payslip_number,
+            emp.employee_code if emp else "N/A",
+            f"{emp.first_name} {emp.last_name}" if emp else "N/A",
+            dept_name,
+            bank_name,
+            acc_no,
+            ifsc,
+            pan,
+            slip.worked_days,
+            slip.unpaid_leave_days,
+            f"{slip.basic_salary:.2f}",
+            f"{slip.gross_salary:.2f}",
+            f"{slip.total_deductions:.2f}",
+            f"{slip.net_salary:.2f}",
+            slip.status,
+            warnings_str
+        ])
+
+    csv_content = output.getvalue()
+    clean_name = payrun.name.replace(" ", "_").replace("/", "_")
+    filename = f"Payroll_Register_{clean_name}.csv"
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )

@@ -49,7 +49,7 @@ async def get_structure(id: str):
     rules = await SalaryRule.find(SalaryRule.structure_id == id).sort("sequence").to_list()
     d = structure.dict()
     d["id"] = str(structure.id)
-    d["rules"] = [{"id": str(r.id), **r.dict()} for r in rules]
+    d["rules"] = [{**r.dict(), "id": str(r.id)} for r in rules]
     return d
 
 @router.post("/structures", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER))])
@@ -68,7 +68,7 @@ async def list_rules(structure_id: Optional[str] = None):
     if structure_id:
         query["structure_id"] = structure_id
     rules = await SalaryRule.find(query).sort("sequence").to_list()
-    return [{"id": str(r.id), **r.dict()} for r in rules]
+    return [{**r.dict(), "id": str(r.id)} for r in rules]
 
 @router.post("/rules", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER))])
 async def create_rule(req: RuleCreate):

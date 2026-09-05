@@ -40,7 +40,7 @@ class RefusalRequest(BaseModel):
 @router.get("/types", dependencies=[Depends(get_current_user)])
 async def list_types():
     types = await TimeOffType.find_all().to_list()
-    return [{"id": str(t.id), **t.dict()} for t in types]
+    return [{**t.dict(), "id": str(t.id)} for t in types]
 
 @router.post("/types", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_type(req: TypeCreate):

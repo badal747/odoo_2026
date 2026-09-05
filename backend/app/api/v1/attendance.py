@@ -1,8 +1,9 @@
 from datetime import datetime, date
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
-from app.models.models import Attendance, AttendanceStatus, Employee
+from app.api.deps import require_roles, get_current_user
+from app.models.models import Attendance, AttendanceStatus, Employee, User, UserRole
 
 router = APIRouter(prefix="/attendance", tags=["Attendance Tracking"])
 
@@ -23,11 +24,18 @@ class ManualCorrectionRequest(BaseModel):
 async def list_attendances(
     employee_id: Optional[str] = None,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
 ):
     query = {}
-    if employee_id:
+    # If Employee role, restrict strictly to their own attendance
+    if current_user.role == UserRole.EMPLOYEE:
+        if not current_user.employee_id:
+            return []
+        query["employee_id"] = current_user.employee_id
+    elif employee_id:
         query["employee_id"] = employee_id
+
     if start_date and end_date:
         s = datetime.fromisoformat(start_date)
         e = datetime.fromisoformat(end_date)
@@ -45,13 +53,19 @@ async def list_attendances(
     return res
 
 @router.post("/check-in")
-async def check_in(req: CheckInRequest):
+async def check_in(req: CheckInRequest, current_user: User = Depends(get_current_user)):
+    emp_id = req.employee_id
+    if current_user.role == UserRole.EMPLOYEE:
+        if not current_user.employee_id:
+            raise HTTPException(status_code=400, detail="User has no linked employee profile")
+        emp_id = current_user.employee_id
+
     now = datetime.utcnow()
     today_start = datetime(now.year, now.month, now.day)
 
     # Check if already checked in today
     existing = await Attendance.find_one(
-        Attendance.employee_id == req.employee_id,
+        Attendance.employee_id == emp_id,
         Attendance.date == today_start
     )
     if existing:
@@ -63,7 +77,7 @@ async def check_in(req: CheckInRequest):
     status = AttendanceStatus.LATE if is_late else AttendanceStatus.PRESENT
 
     record = Attendance(
-        employee_id=req.employee_id,
+        employee_id=emp_id,
         date=today_start,
         check_in=now,
         status=status,
@@ -73,12 +87,18 @@ async def check_in(req: CheckInRequest):
     return {"id": str(record.id), "status": status, "check_in": now.isoformat()}
 
 @router.post("/check-out")
-async def check_out(req: CheckOutRequest):
+async def check_out(req: CheckOutRequest, current_user: User = Depends(get_current_user)):
+    emp_id = req.employee_id
+    if current_user.role == UserRole.EMPLOYEE:
+        if not current_user.employee_id:
+            raise HTTPException(status_code=400, detail="User has no linked employee profile")
+        emp_id = current_user.employee_id
+
     now = datetime.utcnow()
     today_start = datetime(now.year, now.month, now.day)
 
     record = await Attendance.find_one(
-        Attendance.employee_id == req.employee_id,
+        Attendance.employee_id == emp_id,
         Attendance.date == today_start
     )
     if not record:
@@ -105,8 +125,8 @@ async def check_out(req: CheckOutRequest):
         "status": record.status
     }
 
-@router.put("/{id}/manual-correction")
-async def manual_correction(id: str, req: ManualCorrectionRequest):
+@router.put("/{id}/manual-correction", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
+async def manual_correction(id: str, req: ManualCorrectionRequest, current_user: User = Depends(get_current_user)):
     record = await Attendance.get(id)
     if not record:
         raise HTTPException(status_code=404, detail="Attendance record not found")
@@ -121,7 +141,7 @@ async def manual_correction(id: str, req: ManualCorrectionRequest):
     record.status = req.status
     record.is_manual_edit = True
     record.manual_edit_note = req.manual_edit_note
-    record.edited_by_user_id = req.edited_by_user_id
+    record.edited_by_user_id = str(current_user.id)
     await record.save()
 
     return {"id": str(record.id), "message": "Attendance corrected with audit trail"}

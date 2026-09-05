@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.api.deps import get_current_user
 from app.models.models import (
     Payrun, Payslip, Employee, Department, Attendance,
     TimeOffRequest, Contract, AttendanceStatus
 )
 
-router = APIRouter(prefix="/dashboard", tags=["Payroll & HR Dashboard"])
+router = APIRouter(prefix="/dashboard", tags=["Payroll & HR Dashboard"], dependencies=[Depends(get_current_user)])
 
 @router.get("/stats")
 async def get_dashboard_stats(department_id: Optional[str] = None):

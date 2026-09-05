@@ -1,8 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from app.models.models import Contract, ContractStatus, Employee, Department, JobPosition, SalaryStructure
+from app.api.deps import require_roles
+from app.models.models import (
+    Contract, ContractStatus, Employee, Department, JobPosition,
+    SalaryStructure, UserRole
+)
 
 router = APIRouter(prefix="/contracts", tags=["Contract Management"])
 
@@ -18,7 +22,7 @@ class ContractCreate(BaseModel):
     salary_structure_id: str
     working_schedule_id: Optional[str] = None
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))])
 async def list_contracts(employee_id: Optional[str] = None, status: Optional[str] = None):
     query = {}
     if employee_id:
@@ -42,7 +46,7 @@ async def list_contracts(employee_id: Optional[str] = None, status: Optional[str
         res.append(d)
     return res
 
-@router.get("/{id}")
+@router.get("/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))])
 async def get_contract(id: str):
     contract = await Contract.get(id)
     if not contract:
@@ -59,7 +63,7 @@ async def get_contract(id: str):
     d["salary_structure_name"] = struct.name if struct else "Unknown"
     return d
 
-@router.post("")
+@router.post("", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_contract(req: ContractCreate):
     # 1. Code uniqueness check
     existing = await Contract.find_one(Contract.contract_code == req.contract_code)
@@ -90,7 +94,7 @@ async def create_contract(req: ContractCreate):
     await c.insert()
     return {"id": str(c.id), "contract_code": c.contract_code, "message": "Contract created successfully"}
 
-@router.put("/{id}")
+@router.put("/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def update_contract(id: str, req: ContractCreate):
     contract = await Contract.get(id)
     if not contract:

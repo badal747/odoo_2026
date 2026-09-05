@@ -1,9 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from app.models.models import Payslip, Employee, Contract
+from app.api.deps import require_roles
+from app.models.models import Payslip, Employee, Contract, UserRole
 from app.services.pdf_service import generate_payslip_pdf
 
-router = APIRouter(prefix="/payslips", tags=["Payslip Details & PDF"])
+router = APIRouter(
+    prefix="/payslips",
+    tags=["Payslip Details & PDF"],
+    dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))]
+)
 
 @router.get("/{id}")
 async def get_payslip(id: str):

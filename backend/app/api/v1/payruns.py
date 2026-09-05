@@ -1,16 +1,21 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel
+from app.api.deps import require_roles
 from app.models.models import (
     Payrun, Payslip, Employee, Contract, SalaryStructure, SalaryRule,
-    Attendance, TimeOffRequest, PayrunStatus
+    Attendance, TimeOffRequest, PayrunStatus, UserRole
 )
 from app.services.payroll_engine import evaluate_salary_rules
 from app.services.pdf_service import generate_payslip_pdf
 
-router = APIRouter(prefix="/payruns", tags=["Payruns & Payslips"])
+router = APIRouter(
+    prefix="/payruns",
+    tags=["Payruns & Payslips"],
+    dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))]
+)
 
 class WizardScopeRequest(BaseModel):
     salary_structure_id: str

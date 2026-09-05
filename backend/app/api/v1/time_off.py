@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from app.api.deps import require_roles, get_current_user
 from app.models.models import (
     TimeOffType, TimeOffAllocation, TimeOffRequest,
-    TimeOffRequestStatus, Employee, LeaveUnit
+    TimeOffRequestStatus, Employee, LeaveUnit, User, UserRole
 )
 
 router = APIRouter(prefix="/time-off", tags=["Time Off & Leaves"])
@@ -36,12 +37,12 @@ class RefusalRequest(BaseModel):
     refusal_reason: str
 
 # ----------------- TIME OFF TYPES -----------------
-@router.get("/types")
+@router.get("/types", dependencies=[Depends(get_current_user)])
 async def list_types():
     types = await TimeOffType.find_all().to_list()
     return [{"id": str(t.id), **t.dict()} for t in types]
 
-@router.post("/types")
+@router.post("/types", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_type(req: TypeCreate):
     existing = await TimeOffType.find_one(TimeOffType.code == req.code)
     if existing:
@@ -52,9 +53,13 @@ async def create_type(req: TypeCreate):
 
 # ----------------- ALLOCATIONS -----------------
 @router.get("/allocations")
-async def list_allocations(employee_id: Optional[str] = None):
+async def list_allocations(employee_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
     query = {}
-    if employee_id:
+    if current_user.role == UserRole.EMPLOYEE:
+        if not current_user.employee_id:
+            return []
+        query["employee_id"] = current_user.employee_id
+    elif employee_id:
         query["employee_id"] = employee_id
 
     allocations = await TimeOffAllocation.find(query).to_list()
@@ -70,7 +75,7 @@ async def list_allocations(employee_id: Optional[str] = None):
         res.append(d)
     return res
 
-@router.post("/allocations")
+@router.post("/allocations", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_allocation(req: AllocationCreate):
     alloc = TimeOffAllocation(
         employee_id=req.employee_id,
@@ -87,10 +92,19 @@ async def create_allocation(req: AllocationCreate):
 
 # ----------------- TIME OFF REQUESTS -----------------
 @router.get("/requests")
-async def list_requests(employee_id: Optional[str] = None, status: Optional[str] = None):
+async def list_requests(
+    employee_id: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
     query = {}
-    if employee_id:
+    if current_user.role == UserRole.EMPLOYEE:
+        if not current_user.employee_id:
+            return []
+        query["employee_id"] = current_user.employee_id
+    elif employee_id:
         query["employee_id"] = employee_id
+
     if status:
         query["status"] = status
 
@@ -111,7 +125,14 @@ async def list_requests(employee_id: Optional[str] = None, status: Optional[str]
     return res
 
 @router.post("/requests")
-async def create_request(req: RequestCreate):
+async def create_request(req: RequestCreate, current_user: User = Depends(get_current_user)):
+    emp_id = req.employee_id
+    if current_user.role == UserRole.EMPLOYEE:
+        if not current_user.employee_id:
+            raise HTTPException(status_code=400, detail="User has no linked employee profile")
+        emp_id = current_user.employee_id
+        req.employee_id = emp_id
+
     leave_type = await TimeOffType.get(req.time_off_type_id)
     if not leave_type:
         raise HTTPException(status_code=404, detail="Leave type not found")
@@ -119,7 +140,7 @@ async def create_request(req: RequestCreate):
     # If leave requires allocation balance, check sufficiency
     if leave_type.requires_allocation:
         allocations = await TimeOffAllocation.find(
-            TimeOffAllocation.employee_id == req.employee_id,
+            TimeOffAllocation.employee_id == emp_id,
             TimeOffAllocation.time_off_type_id == req.time_off_type_id,
             TimeOffAllocation.status == "APPROVED",
             TimeOffAllocation.valid_from <= req.end_date,
@@ -137,8 +158,8 @@ async def create_request(req: RequestCreate):
     await leave_req.insert()
     return {"id": str(leave_req.id), "status": leave_req.status, "message": "Time off request submitted"}
 
-@router.put("/requests/{id}/approve")
-async def approve_request(id: str, approved_by: Optional[str] = "admin"):
+@router.put("/requests/{id}/approve", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
+async def approve_request(id: str, current_user: User = Depends(get_current_user)):
     leave_req = await TimeOffRequest.get(id)
     if not leave_req:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -163,19 +184,19 @@ async def approve_request(id: str, approved_by: Optional[str] = "admin"):
         await alloc.save()
 
     leave_req.status = TimeOffRequestStatus.APPROVED
-    leave_req.approved_by = approved_by
+    leave_req.approved_by = current_user.email
     await leave_req.save()
 
     return {"id": str(leave_req.id), "status": "APPROVED", "message": "Leave approved and balance deducted"}
 
-@router.put("/requests/{id}/refuse")
-async def refuse_request(id: str, req: RefusalRequest, refused_by: Optional[str] = "admin"):
+@router.put("/requests/{id}/refuse", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
+async def refuse_request(id: str, req: RefusalRequest, current_user: User = Depends(get_current_user)):
     leave_req = await TimeOffRequest.get(id)
     if not leave_req:
         raise HTTPException(status_code=404, detail="Request not found")
 
     leave_req.status = TimeOffRequestStatus.REFUSED
     leave_req.refusal_reason = req.refusal_reason
-    leave_req.approved_by = refused_by
+    leave_req.approved_by = current_user.email
     await leave_req.save()
     return {"id": str(leave_req.id), "status": "REFUSED", "message": "Leave refused"}

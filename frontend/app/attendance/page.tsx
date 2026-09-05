@@ -15,8 +15,12 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { formatDate } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
 function AttendanceContent() {
+  const { hasRole } = useAuth();
+  const canManageAttendance = hasRole(["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER"]);
+
   const searchParams = useSearchParams();
   const filterEmployeeId = searchParams.get("employee_id");
 
@@ -164,13 +168,17 @@ function AttendanceContent() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleOpenEdit(a)}
-                        className="inline-flex items-center space-x-1 text-odoo-purple hover:underline font-semibold"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                        <span>Correct</span>
-                      </button>
+                      {canManageAttendance ? (
+                        <button
+                          onClick={() => handleOpenEdit(a)}
+                          className="inline-flex items-center space-x-1 text-odoo-purple hover:underline font-semibold"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span>Correct</span>
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">&mdash;</span>
+                      )}
                     </td>
                   </tr>
                 );

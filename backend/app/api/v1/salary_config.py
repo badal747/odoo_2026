@@ -1,8 +1,9 @@
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from app.api.deps import require_roles
 from app.models.models import (
-    SalaryStructure, SalaryRule, RuleCategory, ComputationType
+    SalaryStructure, SalaryRule, RuleCategory, ComputationType, UserRole
 )
 
 router = APIRouter(prefix="/payroll-config", tags=["Salary Configuration"])
@@ -27,7 +28,7 @@ class RuleCreate(BaseModel):
     active: bool = True
 
 # ----------------- SALARY STRUCTURES -----------------
-@router.get("/structures")
+@router.get("/structures", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))])
 async def list_structures():
     structures = await SalaryStructure.find_all().to_list()
     res = []
@@ -39,7 +40,7 @@ async def list_structures():
         res.append(d)
     return res
 
-@router.get("/structures/{id}")
+@router.get("/structures/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))])
 async def get_structure(id: str):
     structure = await SalaryStructure.get(id)
     if not structure:
@@ -51,7 +52,7 @@ async def get_structure(id: str):
     d["rules"] = [{"id": str(r.id), **r.dict()} for r in rules]
     return d
 
-@router.post("/structures")
+@router.post("/structures", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER))])
 async def create_structure(req: StructureCreate):
     existing = await SalaryStructure.find_one(SalaryStructure.code == req.code)
     if existing:
@@ -61,7 +62,7 @@ async def create_structure(req: StructureCreate):
     return {"id": str(s.id), "name": s.name}
 
 # ----------------- SALARY RULES -----------------
-@router.get("/rules")
+@router.get("/rules", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))])
 async def list_rules(structure_id: Optional[str] = None):
     query = {}
     if structure_id:
@@ -69,7 +70,7 @@ async def list_rules(structure_id: Optional[str] = None):
     rules = await SalaryRule.find(query).sort("sequence").to_list()
     return [{"id": str(r.id), **r.dict()} for r in rules]
 
-@router.post("/rules")
+@router.post("/rules", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER))])
 async def create_rule(req: RuleCreate):
     existing = await SalaryRule.find_one(
         SalaryRule.structure_id == req.structure_id,
@@ -82,7 +83,7 @@ async def create_rule(req: RuleCreate):
     await r.insert()
     return {"id": str(r.id), "name": r.name}
 
-@router.put("/rules/{id}")
+@router.put("/rules/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER))])
 async def update_rule(id: str, req: RuleCreate):
     rule = await SalaryRule.get(id)
     if not rule:
@@ -93,7 +94,7 @@ async def update_rule(id: str, req: RuleCreate):
     await rule.save()
     return {"id": str(rule.id), "message": "Rule updated successfully"}
 
-@router.delete("/rules/{id}")
+@router.delete("/rules/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_PAYROLL_MANAGER))])
 async def delete_rule(id: str):
     rule = await SalaryRule.get(id)
     if not rule:

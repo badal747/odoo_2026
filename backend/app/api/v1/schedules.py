@@ -1,7 +1,8 @@
 from typing import List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from app.models.models import WorkingSchedule, ScheduleDayPattern
+from app.api.deps import require_roles
+from app.models.models import WorkingSchedule, ScheduleDayPattern, UserRole
 
 router = APIRouter(prefix="/schedules", tags=["Working Schedules"])
 
@@ -27,7 +28,7 @@ def compute_hours_from_patterns(patterns: List[ScheduleDayPattern]) -> float:
             p.day_hours = 0.0
     return round(total_hours, 2)
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))])
 async def list_schedules():
     schedules = await WorkingSchedule.find_all().to_list()
     res = []
@@ -37,7 +38,7 @@ async def list_schedules():
         res.append(d)
     return res
 
-@router.get("/{id}")
+@router.get("/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER, UserRole.HR_PAYROLL_USER))])
 async def get_schedule(id: str):
     schedule = await WorkingSchedule.get(id)
     if not schedule:
@@ -46,7 +47,7 @@ async def get_schedule(id: str):
     d["id"] = str(schedule.id)
     return d
 
-@router.post("")
+@router.post("", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_schedule(req: ScheduleCreate):
     # Auto calculate weekly hours from pattern
     weekly_hours = compute_hours_from_patterns(req.patterns)
@@ -60,7 +61,7 @@ async def create_schedule(req: ScheduleCreate):
     await schedule.insert()
     return {"id": str(schedule.id), "weekly_hours": weekly_hours, "name": schedule.name}
 
-@router.put("/{id}")
+@router.put("/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def update_schedule(id: str, req: ScheduleCreate):
     schedule = await WorkingSchedule.get(id)
     if not schedule:

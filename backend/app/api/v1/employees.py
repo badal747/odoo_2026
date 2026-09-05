@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, EmailStr
+from app.api.deps import require_roles, get_current_user
 from app.models.models import (
     Employee, Department, JobPosition, Contract, Attendance,
-    TimeOffAllocation, TimeOffRequest, EmployeeStatus, EmploymentType, BankDetails
+    TimeOffAllocation, TimeOffRequest, EmployeeStatus, EmploymentType, BankDetails,
+    UserRole
 )
 
 router = APIRouter(prefix="/employees", tags=["Employee Master"])
@@ -33,7 +35,7 @@ class PositionCreate(BaseModel):
     department_id: Optional[str] = None
 
 # ----------------- EMPLOYEES -----------------
-@router.get("")
+@router.get("", dependencies=[Depends(get_current_user)])
 async def list_employees(
     department_id: Optional[str] = None,
     status: Optional[str] = None,
@@ -69,7 +71,7 @@ async def list_employees(
         
     return res
 
-@router.get("/{id}")
+@router.get("/{id}", dependencies=[Depends(get_current_user)])
 async def get_employee(id: str):
     emp = await Employee.get(id)
     if not emp:
@@ -86,7 +88,7 @@ async def get_employee(id: str):
     d["manager_name"] = f"{mgr.first_name} {mgr.last_name}" if mgr else "None (Top Level)"
     return d
 
-@router.post("")
+@router.post("", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_employee(req: EmployeeCreate):
     existing = await Employee.find_one(Employee.employee_code == req.employee_code)
     if existing:
@@ -96,7 +98,7 @@ async def create_employee(req: EmployeeCreate):
     await emp.insert()
     return {"id": str(emp.id), "message": "Employee created successfully"}
 
-@router.put("/{id}")
+@router.put("/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def update_employee(id: str, req: EmployeeCreate):
     emp = await Employee.get(id)
     if not emp:
@@ -108,7 +110,7 @@ async def update_employee(id: str, req: EmployeeCreate):
     await emp.save()
     return {"id": str(emp.id), "message": "Employee updated successfully"}
 
-@router.get("/{id}/smart-counts")
+@router.get("/{id}/smart-counts", dependencies=[Depends(get_current_user)])
 async def get_employee_smart_counts(id: str):
     """
     Returns live counters for Smart Buttons on Employee Form:
@@ -156,7 +158,7 @@ async def get_employee_smart_counts(id: str):
     }
 
 # ----------------- DEPARTMENTS & POSITIONS -----------------
-@router.get("/departments/all")
+@router.get("/departments/all", dependencies=[Depends(get_current_user)])
 async def list_departments():
     depts = await Department.find_all().to_list()
     res = []
@@ -170,18 +172,18 @@ async def list_departments():
         })
     return res
 
-@router.post("/departments")
+@router.post("/departments", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_department(req: DepartmentCreate):
     dept = Department(name=req.name, code=req.code)
     await dept.insert()
     return {"id": str(dept.id), "name": dept.name}
 
-@router.get("/positions/all")
+@router.get("/positions/all", dependencies=[Depends(get_current_user)])
 async def list_positions():
     positions = await JobPosition.find_all().to_list()
     return [{"id": str(p.id), "title": p.title, "department_id": p.department_id} for p in positions]
 
-@router.post("/positions")
+@router.post("/positions", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
 async def create_position(req: PositionCreate):
     pos = JobPosition(title=req.title, department_id=req.department_id)
     await pos.insert()

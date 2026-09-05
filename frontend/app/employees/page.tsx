@@ -23,8 +23,12 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
 export default function EmployeesPage() {
+  const { hasRole } = useAuth();
+  const canCreateEmployee = hasRole(["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER"]);
+
   const [employees, setEmployees] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
@@ -163,13 +167,15 @@ export default function EmployeesPage() {
             </button>
           </div>
 
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Employee</span>
-          </button>
+          {canCreateEmployee && (
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Employee</span>
+            </button>
+          )}
         </div>
       </div>
 

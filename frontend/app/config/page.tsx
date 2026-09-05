@@ -12,11 +12,16 @@ import {
   DollarSign,
   HelpCircle,
   X,
-  Layers
+  Layers,
+  Lock
 } from "lucide-react";
 import api from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 export default function SalaryConfigPage() {
+  const { hasRole } = useAuth();
+  const canEditRules = hasRole(["ADMIN", "HR_PAYROLL_MANAGER"]);
+
   const [structures, setStructures] = useState<any[]>([]);
   const [selectedStructure, setSelectedStructure] = useState<any>(null);
   const [rules, setRules] = useState<any[]>([]);
@@ -107,13 +112,20 @@ export default function SalaryConfigPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsRuleModalOpen(true)}
-          className="flex items-center space-x-1.5 px-3.5 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Salary Rule</span>
-        </button>
+        {canEditRules ? (
+          <button
+            onClick={() => setIsRuleModalOpen(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Salary Rule</span>
+          </button>
+        ) : (
+          <span className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-lg">
+            <Lock className="w-3.5 h-3.5 text-amber-600" />
+            <span>Read-Only Mode (Payroll Officer)</span>
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -234,13 +246,15 @@ export default function SalaryConfigPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => handleDeleteRule(r.id)}
-                            className="text-slate-400 hover:text-rose-600 p-1"
-                            title="Delete rule"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canEditRules && (
+                            <button
+                              onClick={() => handleDeleteRule(r.id)}
+                              className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
+                              title="Delete rule"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

@@ -5,7 +5,7 @@ Write-Host "==========================================================" -Foregro
 
 # Start FastAPI Backend in a new window
 Write-Host "Starting FastAPI Backend on http://localhost:8000..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\backend'; .\venv\Scripts\activate; python main.py"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\backend'; .\venv\Scripts\python.exe main.py"
 
 # Start Next.js Frontend in a new window
 Write-Host "Starting Next.js Frontend on http://localhost:3000..." -ForegroundColor Green

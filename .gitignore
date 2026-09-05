@@ -16,3 +16,6 @@ frontend/.env.local
 Thumbs.db
 .vscode/
 .idea/
+
+# Documentation (local only — not for GitHub)
+PROJECT_DOCUMENTATION.md

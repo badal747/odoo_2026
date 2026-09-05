@@ -4,15 +4,8 @@ import React, { useState, useEffect } from "react";
 import {
   Sliders,
   Plus,
-  Edit2,
   Trash2,
-  CheckCircle2,
-  Code,
-  Percent,
-  DollarSign,
-  HelpCircle,
   X,
-  Layers,
   Lock
 } from "lucide-react";
 import api from "@/lib/api";
@@ -43,6 +36,7 @@ export default function SalaryConfigPage() {
 
   useEffect(() => {
     fetchStructures();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchStructures = async () => {
@@ -189,7 +183,16 @@ export default function SalaryConfigPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rules.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-slate-400">
+                      <div className="flex items-center justify-center space-x-2">
+                        <Sliders className="w-4 h-4 animate-spin text-slate-400" />
+                        <span>Loading salary structure rules...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : rules.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-8 text-slate-400">
                       No rules configured for this structure. Click "Add Salary Rule" to create one.

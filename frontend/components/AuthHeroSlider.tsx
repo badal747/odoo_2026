@@ -68,7 +68,7 @@ export default function AuthHeroSlider() {
         if (res.data && typeof res.data.active_employees_count === "number") {
           setActiveEmployeesCount(res.data.active_employees_count);
         }
-      } catch (err) {
+      } catch {
         // Graceful fallback if network is temporarily unavailable
       }
     };

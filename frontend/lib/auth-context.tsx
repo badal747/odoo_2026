@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("peoplepay_user");
       localStorage.removeItem("peoplepay_role");
       localStorage.removeItem("peoplepay_name");
-    } catch (e) {
+    } catch {
       // Ignore if localStorage blocked
     }
 

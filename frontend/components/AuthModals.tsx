@@ -3,18 +3,11 @@
 import React, { useEffect } from "react";
 import {
   X,
-  Layers,
-  CheckCircle2,
   Shield,
   CreditCard,
   Clock,
-  Building2,
   FileSpreadsheet,
-  Cpu,
   BookOpen,
-  Info,
-  ArrowRight,
-  Code2,
 } from "lucide-react";
 
 interface ModalProps {

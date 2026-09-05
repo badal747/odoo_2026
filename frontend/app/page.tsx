@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -12,7 +11,6 @@ import {
   CheckCircle2,
   Building2,
   DollarSign,
-  Activity,
   Filter,
   RotateCcw,
   Compass,
@@ -21,9 +19,6 @@ import {
   AlertCircle,
   Edit3,
   Sliders,
-  ArrowUpRight,
-  ShieldCheck,
-  Check
 } from "lucide-react";
 import {
   BarChart,
@@ -187,6 +182,11 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-1.5 font-mono">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span className="font-semibold text-slate-700">{liveClock || "Live Clock"}</span>
+              {lastSyncedTime && (
+                <span className="text-[10px] text-slate-400 font-sans ml-1.5 hidden sm:inline">
+                  (Synced: {lastSyncedTime})
+                </span>
+              )}
             </div>
             <button
               onClick={() => fetchDashboardData(false)}
@@ -280,6 +280,15 @@ export default function DashboardPage() {
             >
               <Users className="w-3.5 h-3.5" />
               <span>Staff Directory</span>
+            </Link>
+          )}
+          {canAccessContracts && (
+            <Link
+              href="/contracts"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Contracts Hub</span>
             </Link>
           )}
           <Link

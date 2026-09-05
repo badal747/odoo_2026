@@ -9,11 +9,9 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Sparkles,
   Layers,
   Info,
   BookOpen,
-  CreditCard,
   ChevronDown,
   Check,
 } from "lucide-react";

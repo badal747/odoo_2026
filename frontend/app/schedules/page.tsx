@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Clock, Plus, X, CheckCircle2, Calendar } from "lucide-react";
+import { Clock, Plus, X } from "lucide-react";
 import api from "@/lib/api";
 
 const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
@@ -27,6 +27,7 @@ export default function SchedulesPage() {
 
   useEffect(() => {
     fetchSchedules();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchSchedules = async () => {
@@ -99,7 +100,12 @@ export default function SchedulesPage() {
 
       {/* Schedules List */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {schedules.map((s) => (
+        {loading ? (
+          <div className="col-span-full p-8 text-center text-xs text-slate-400">Loading schedules...</div>
+        ) : schedules.length === 0 ? (
+          <div className="col-span-full p-8 text-center text-xs text-slate-400">No schedules configured.</div>
+        ) : (
+          schedules.map((s) => (
           <div key={s.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-subtle flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
@@ -122,7 +128,7 @@ export default function SchedulesPage() {
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* CREATE WORKING SCHEDULE MODAL (With Live Auto-Calculation) */}

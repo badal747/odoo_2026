@@ -9,21 +9,18 @@ import {
   List as ListIcon,
   Plus,
   Mail,
-  Phone,
   Building,
   Briefcase,
   UserCheck,
   FileText,
   Clock,
   Calendar,
-  CreditCard,
   X,
   AlertCircle,
   ExternalLink,
   Trash2
 } from "lucide-react";
 import api from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 export default function EmployeesPage() {
@@ -34,7 +31,6 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
-  const [schedules, setSchedules] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
@@ -91,16 +87,14 @@ export default function EmployeesPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [empRes, deptRes, posRes, schRes] = await Promise.all([
+      const [empRes, deptRes, posRes] = await Promise.all([
         api.get("/employees"),
         api.get("/employees/departments/all"),
         api.get("/employees/positions/all"),
-        api.get("/schedules"),
       ]);
       setEmployees(empRes.data);
       setDepartments(deptRes.data);
       setPositions(posRes.data);
-      setSchedules(schRes.data);
     } catch (err) {
       console.error("Failed to load employee data:", err);
     } finally {
@@ -230,8 +224,13 @@ export default function EmployeesPage() {
         </select>
       </div>
 
-      {/* KANBAN VIEW */}
-      {viewMode === "kanban" ? (
+      {/* KANBAN / LIST VIEW */}
+      {loading ? (
+        <div className="bg-white p-12 rounded-xl border border-slate-200 text-center text-xs text-slate-400">
+          <Users className="w-6 h-6 mx-auto mb-2 animate-spin text-slate-400" />
+          <span>Loading employee directory...</span>
+        </div>
+      ) : viewMode === "kanban" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredEmployees.map((emp) => (
             <div
@@ -329,7 +328,7 @@ export default function EmployeesPage() {
                   >
                     <td className="px-4 py-3 font-semibold text-slate-900">{emp.employee_code}</td>
                     <td className="px-4 py-3 font-medium text-slate-900 flex items-center space-x-2">
-                      <img src={emp.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} className="w-6 h-6 rounded-full" />
+                      <img src={emp.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} alt={`${emp.first_name} ${emp.last_name}`} className="w-6 h-6 rounded-full" />
                       <span>{emp.first_name} {emp.last_name}</span>
                     </td>
                     <td className="px-4 py-3">{emp.department_name}</td>
@@ -372,6 +371,7 @@ export default function EmployeesPage() {
               <div className="flex items-center space-x-3">
                 <img
                   src={activeEmployee.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"}
+                  alt={`${activeEmployee.first_name} ${activeEmployee.last_name}`}
                   className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
                 />
                 <div>

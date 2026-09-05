@@ -5,15 +5,8 @@ import { useSearchParams } from "next/navigation";
 import {
   FileText,
   Plus,
-  Search,
-  CheckCircle2,
   AlertTriangle,
-  Calendar,
-  DollarSign,
-  Building,
-  Briefcase,
   X,
-  UserCheck
 } from "lucide-react";
 import api from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -46,6 +39,7 @@ function ContractsContent() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterEmployeeId]);
 
   const fetchData = async () => {
@@ -148,7 +142,16 @@ function ContractsContent() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {contracts.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="text-center py-8 text-slate-400">
+                  <div className="flex items-center justify-center space-x-2">
+                    <FileText className="w-4 h-4 animate-spin text-slate-400" />
+                    <span>Loading contracts...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : contracts.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-8 text-slate-400">
                   No contracts found for current filter.

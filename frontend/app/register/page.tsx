@@ -10,7 +10,6 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Sparkles,
   Layers,
   Info,
   BookOpen,

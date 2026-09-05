@@ -4,14 +4,9 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  FileText,
   Printer,
   ArrowLeft,
-  CheckCircle2,
   AlertTriangle,
-  Calendar,
-  DollarSign,
-  UserCheck
 } from "lucide-react";
 import api, { getPayslipPdfUrl } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -25,6 +20,7 @@ export default function PayslipDetailPage() {
 
   useEffect(() => {
     if (id) fetchPayslip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchPayslip = async () => {
@@ -46,13 +42,6 @@ export default function PayslipDetailPage() {
   if (!payslip) {
     return <div className="p-8 text-xs text-rose-500">Payslip record not found.</div>;
   }
-
-  const earningsLines = (payslip.lines || []).filter(
-    (l: any) => l.category === "BASIC" || l.category === "ALLOWANCE"
-  );
-  const deductionLines = (payslip.lines || []).filter(
-    (l: any) => l.category === "DEDUCTION"
-  );
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

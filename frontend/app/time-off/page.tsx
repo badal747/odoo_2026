@@ -5,11 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   Calendar,
   CheckCircle2,
-  XCircle,
-  Clock,
   Plus,
-  Filter,
-  UserCheck,
   AlertCircle,
   X,
   PieChart
@@ -19,7 +15,7 @@ import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 function TimeOffContent() {
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
   const canManageLeaves = hasRole(["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER"]);
 
   const searchParams = useSearchParams();
@@ -39,28 +35,29 @@ function TimeOffContent() {
 
   // New Request Modal
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [reqError, setReqError] = useState("");
   const [reqForm, setReqForm] = useState({
     employee_id: filterEmployeeId || "",
     time_off_type_id: "",
     start_date: todayStr,
     end_date: todayStr,
-    duration_units: 1.0,
+    duration_units: 1,
     reason: "",
   });
-  const [reqError, setReqError] = useState("");
 
   // New Allocation Modal
   const [isAllocModalOpen, setIsAllocModalOpen] = useState(false);
   const [allocForm, setAllocForm] = useState({
     employee_id: filterEmployeeId || "",
     time_off_type_id: "",
-    allocated_units: 15.0,
+    allocated_units: 10,
     valid_from: `${curYear}-01-01`,
     valid_to: `${curYear}-12-31`,
   });
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterEmployeeId]);
 
   const fetchData = async () => {
@@ -235,7 +232,16 @@ function TimeOffContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {requests.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-slate-400">
+                    <div className="flex items-center justify-center space-x-2">
+                      <Calendar className="w-4 h-4 animate-spin text-slate-400" />
+                      <span>Loading leave requests...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : requests.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-slate-400">
                     No time off requests found.

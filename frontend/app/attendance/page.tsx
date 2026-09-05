@@ -4,14 +4,9 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Clock,
-  CheckCircle2,
-  AlertTriangle,
   Calendar,
-  Filter,
-  UserCheck,
   Edit2,
   X,
-  Plus
 } from "lucide-react";
 import api from "@/lib/api";
 import { formatDate } from "@/lib/utils";
@@ -32,7 +27,6 @@ function AttendanceContent() {
 
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [attendances, setAttendances] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Manual Correction Modal
@@ -47,6 +41,7 @@ function AttendanceContent() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterEmployeeId, selectedDate]);
 
   const fetchData = async () => {
@@ -56,12 +51,8 @@ function AttendanceContent() {
       if (filterEmployeeId) params.employee_id = filterEmployeeId;
       if (selectedDate && selectedDate !== "ALL") params.date = selectedDate;
 
-      const [attRes, empRes] = await Promise.all([
-        api.get("/attendance", { params }),
-        api.get("/employees"),
-      ]);
-      setAttendances(attRes.data || []);
-      setEmployees(empRes.data || []);
+      const res = await api.get("/attendance", { params });
+      setAttendances(res.data || []);
     } catch (err) {
       console.error("Failed to load attendance:", err);
     } finally {
@@ -208,7 +199,14 @@ function AttendanceContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {attendances.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <Clock className="w-7 h-7 text-slate-300 mx-auto mb-2 animate-spin" />
+                    <p className="text-xs font-semibold text-slate-600">Loading attendance logs...</p>
+                  </td>
+                </tr>
+              ) : attendances.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-slate-400">
                     <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />

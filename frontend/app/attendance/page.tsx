@@ -24,6 +24,13 @@ function AttendanceContent() {
   const searchParams = useSearchParams();
   const filterEmployeeId = searchParams.get("employee_id");
 
+  // Default to today's local date YYYY-MM-DD
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = yesterdayDate.toLocaleDateString("en-CA");
+
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [attendances, setAttendances] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,17 +47,21 @@ function AttendanceContent() {
 
   useEffect(() => {
     fetchData();
-  }, [filterEmployeeId]);
+  }, [filterEmployeeId, selectedDate]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      const params: any = {};
+      if (filterEmployeeId) params.employee_id = filterEmployeeId;
+      if (selectedDate && selectedDate !== "ALL") params.date = selectedDate;
+
       const [attRes, empRes] = await Promise.all([
-        api.get("/attendance", { params: { employee_id: filterEmployeeId || undefined } }),
+        api.get("/attendance", { params }),
         api.get("/employees"),
       ]);
-      setAttendances(attRes.data);
-      setEmployees(empRes.data);
+      setAttendances(attRes.data || []);
+      setEmployees(empRes.data || []);
     } catch (err) {
       console.error("Failed to load attendance:", err);
     } finally {
@@ -111,28 +122,107 @@ function AttendanceContent() {
         )}
       </div>
 
-      {/* Attendance Log Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
-        <table className="w-full text-left text-xs text-slate-600">
-          <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            <tr>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Employee</th>
-              <th className="px-4 py-3">Check In</th>
-              <th className="px-4 py-3">Check Out</th>
-              <th className="px-4 py-3">Worked Hours</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Audit & Correction</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {attendances.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-8 text-slate-400">
-                  No attendance records found.
-                </td>
-              </tr>
+      {/* Interactive Calendar Date Filter Bar */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Calendar Picker */}
+          <div className="flex items-center space-x-2 bg-slate-50 hover:bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg text-xs transition-colors">
+            <Calendar className="w-4 h-4 text-slate-600" />
+            <span className="font-semibold text-slate-700">Choose Date:</span>
+            <input
+              type="date"
+              value={selectedDate === "ALL" ? "" : selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value || "ALL")}
+              className="bg-transparent text-xs font-semibold text-slate-900 focus:outline-none cursor-pointer"
+            />
+          </div>
+
+          {/* Quick Date Shortcuts */}
+          <button
+            onClick={() => setSelectedDate(todayStr)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              selectedDate === todayStr
+                ? "bg-black text-white shadow-sm"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            }`}
+          >
+            Today
+          </button>
+
+          <button
+            onClick={() => setSelectedDate(yesterdayStr)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              selectedDate === yesterdayStr
+                ? "bg-black text-white shadow-sm"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            }`}
+          >
+            Yesterday
+          </button>
+
+          <button
+            onClick={() => setSelectedDate("ALL")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              selectedDate === "ALL"
+                ? "bg-black text-white shadow-sm"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            }`}
+          >
+            All Dates Log
+          </button>
+        </div>
+
+        {/* Selected Date Status & Count */}
+        <div className="flex items-center space-x-2 text-xs">
+          <span className="text-slate-600 font-medium">
+            {selectedDate === "ALL" ? (
+              <span>Showing all historical logs</span>
+            ) : selectedDate === todayStr ? (
+              <span className="text-emerald-700 font-semibold flex items-center space-x-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                <span>Today's Log ({formatDate(selectedDate)})</span>
+              </span>
             ) : (
+              <span>Selected Date: <strong className="text-slate-900">{formatDate(selectedDate)}</strong></span>
+            )}
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 font-bold text-[11px] border border-slate-200">
+            {attendances.length} {attendances.length === 1 ? "record" : "records"}
+          </span>
+        </div>
+      </div>
+
+      {/* Attendance Log Table (100% Responsive with horizontal scroll wrapper) */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left text-xs text-slate-600">
+            <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <tr>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Employee</th>
+                <th className="px-4 py-3">Check In</th>
+                <th className="px-4 py-3">Check Out</th>
+                <th className="px-4 py-3">Worked Hours</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Audit & Correction</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {attendances.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-700 text-sm">
+                      No attendance records for {selectedDate === "ALL" ? "any date" : formatDate(selectedDate)}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {selectedDate === todayStr
+                        ? "Use the 'Check In' button in the navigation bar to mark attendance for today."
+                        : "Select another date from the calendar or choose 'All Dates Log' above."}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
               attendances.map((a) => {
                 const isLate = a.status === "LATE";
                 const isHalfDay = a.status === "HALF_DAY";
@@ -186,6 +276,7 @@ function AttendanceContent() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Manual Attendance Correction Modal */}

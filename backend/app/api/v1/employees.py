@@ -3,8 +3,9 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, EmailStr
 from app.api.deps import require_roles, get_current_user
+from app.core.cache import fast_cache
 from app.models.models import (
-    Employee, Department, JobPosition, Contract, Attendance,
+    User, Employee, Department, JobPosition, Contract, Attendance,
     TimeOffAllocation, TimeOffRequest, EmployeeStatus, EmploymentType, BankDetails,
     UserRole
 )
@@ -99,7 +100,10 @@ async def create_employee(req: EmployeeCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Employee code already exists")
     
-    emp = Employee(**req.dict())
+    data = req.dict()
+    if data.get("bank_details") is None:
+        data["bank_details"] = BankDetails()
+    emp = Employee(**data)
     await emp.insert()
     return {"id": str(emp.id), "message": "Employee created successfully"}
 
@@ -110,6 +114,8 @@ async def update_employee(id: str, req: EmployeeCreate):
         raise HTTPException(status_code=404, detail="Employee not found")
     
     for k, v in req.dict().items():
+        if k == "bank_details" and v is None:
+            continue
         setattr(emp, k, v)
     emp.updated_at = datetime.utcnow()
     await emp.save()
@@ -132,7 +138,46 @@ async def update_employee_bank_details(id: str, req: QuickBankUpdate):
     )
     emp.updated_at = datetime.utcnow()
     await emp.save()
+    fast_cache.invalidate()
     return {"id": str(emp.id), "message": "Bank details updated successfully"}
+
+@router.delete("/{id}", dependencies=[Depends(require_roles(UserRole.ADMIN))])
+async def delete_employee(id: str):
+    """
+    Deletes an employee, their linked user login credentials, contracts,
+    and invalidates caches. Only ADMIN can perform this action.
+    """
+    emp = await Employee.get(id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    # 1. Delete associated user account if any
+    linked_user = await User.find_one(User.employee_id == id)
+    if linked_user:
+        await linked_user.delete()
+        fast_cache.invalidate(f"auth:user:{linked_user.id}")
+
+    # 2. Also check if user with same email exists
+    if emp.email:
+        email_user = await User.find_one(User.email == emp.email.lower())
+        if email_user:
+            await email_user.delete()
+            fast_cache.invalidate(f"auth:user:{email_user.id}")
+
+    # 3. Clean up related records
+    await Contract.find(Contract.employee_id == id).delete()
+    await Attendance.find(Attendance.employee_id == id).delete()
+    await TimeOffRequest.find(TimeOffRequest.employee_id == id).delete()
+    await TimeOffAllocation.find(TimeOffAllocation.employee_id == id).delete()
+
+    # 4. Delete the employee record itself
+    full_name = f"{emp.first_name} {emp.last_name}"
+    await emp.delete()
+
+    # 5. Invalidate dashboard and lists caches
+    fast_cache.invalidate()
+
+    return {"message": f"Employee {full_name} and linked user account removed successfully"}
 
 @router.get("/{id}/smart-counts", dependencies=[Depends(get_current_user)])
 async def get_employee_smart_counts(id: str):

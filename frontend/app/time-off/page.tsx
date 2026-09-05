@@ -189,10 +189,10 @@ function TimeOffContent() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 space-x-6 text-xs font-semibold">
+      <div className="flex border-b border-slate-200 space-x-6 text-xs font-semibold overflow-x-auto whitespace-nowrap pb-1">
         <button
           onClick={() => setActiveTab("requests")}
-          className={`pb-3 px-1 border-b-2 transition-colors flex items-center space-x-1.5 ${
+          className={`pb-3 px-1 border-b-2 transition-colors flex items-center space-x-1.5 shrink-0 ${
             activeTab === "requests" ? "border-blue-600 text-blue-600 font-bold" : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
@@ -201,7 +201,7 @@ function TimeOffContent() {
         </button>
         <button
           onClick={() => setActiveTab("allocations")}
-          className={`pb-3 px-1 border-b-2 transition-colors flex items-center space-x-1.5 ${
+          className={`pb-3 px-1 border-b-2 transition-colors flex items-center space-x-1.5 shrink-0 ${
             activeTab === "allocations" ? "border-odoo-purple text-odoo-purple font-bold" : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
@@ -210,7 +210,7 @@ function TimeOffContent() {
         </button>
         <button
           onClick={() => setActiveTab("types")}
-          className={`pb-3 px-1 border-b-2 transition-colors flex items-center space-x-1.5 ${
+          className={`pb-3 px-1 border-b-2 transition-colors flex items-center space-x-1.5 shrink-0 ${
             activeTab === "types" ? "border-emerald-600 text-emerald-600 font-bold" : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
@@ -221,8 +221,8 @@ function TimeOffContent() {
 
       {/* TAB 1: REQUESTS */}
       {activeTab === "requests" && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
-          <table className="w-full text-left text-xs text-slate-600">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-subtle overflow-x-auto">
+          <table className="w-full min-w-[700px] text-left text-xs text-slate-600">
             <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3">Employee</th>
@@ -314,8 +314,8 @@ function TimeOffContent() {
 
       {/* TAB 2: ALLOCATIONS */}
       {activeTab === "allocations" && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
-          <table className="w-full text-left text-xs text-slate-600">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-subtle overflow-x-auto">
+          <table className="w-full min-w-[700px] text-left text-xs text-slate-600">
             <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3">Employee</th>

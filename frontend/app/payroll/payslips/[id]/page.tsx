@@ -9,12 +9,11 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertTriangle,
-  Download,
   Calendar,
   DollarSign,
   UserCheck
 } from "lucide-react";
-import api, { getPayslipPdfUrl, downloadPayslipPdfBlob } from "@/lib/api";
+import api, { getPayslipPdfUrl } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function PayslipDetailPage() {
@@ -23,21 +22,6 @@ export default function PayslipDetailPage() {
 
   const [payslip, setPayslip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
-
-  const handleDownload = async () => {
-    if (!payslip) return;
-    try {
-      setDownloading(true);
-      const safeNum = (payslip.payslip_number || id).replace(/\//g, "_");
-      await downloadPayslipPdfBlob(payslip.id, `Payslip_${safeNum}.pdf`);
-    } catch (err) {
-      console.error("Blob download failed, opening direct URL:", err);
-      window.open(getPayslipPdfUrl(payslip.id, true), "_blank");
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   useEffect(() => {
     if (id) fetchPayslip();
@@ -94,29 +78,17 @@ export default function PayslipDetailPage() {
           </div>
         </div>
 
-        {/* PRINT / PREVIEW & DOWNLOAD PDF BUTTONS */}
-        <div className="flex items-center space-x-2">
-          <a
-            href={getPayslipPdfUrl(payslip.id, false)}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center space-x-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-sm transition-all"
-            title="Open PDF Preview in new tab"
-          >
-            <Printer className="w-3.5 h-3.5 text-slate-600" />
-            <span>Print / Preview</span>
-          </a>
-
-          <button
-            onClick={handleDownload}
-            disabled={downloading}
-            className="flex items-center space-x-2 px-4 py-2 bg-black hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
-            title="Download PDF directly to your device"
-          >
-            <Download className={`w-3.5 h-3.5 ${downloading ? 'animate-spin' : ''}`} />
-            <span>{downloading ? "Downloading..." : "Download PDF"}</span>
-          </button>
-        </div>
+        {/* PRINT / PREVIEW PDF BUTTON ONLY */}
+        <a
+          href={getPayslipPdfUrl(payslip.id, false)}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center space-x-2 px-4 py-2 bg-black hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+          title="Open PDF Preview in new tab"
+        >
+          <Printer className="w-4 h-4 text-white" />
+          <span>Print / Preview PDF</span>
+        </a>
       </div>
 
       {/* Warnings Banner if any */}
@@ -159,15 +131,15 @@ export default function PayslipDetailPage() {
       </div>
 
       {/* COMPUTED SALARY RULE BREAKDOWN TABLE */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
-        <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-subtle overflow-x-auto">
+        <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between min-w-[650px]">
           <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
             Sequential Salary Computation Lines
           </h2>
           <span className="text-[11px] font-semibold text-odoo-purple">Executed via Python AST Engine</span>
         </div>
 
-        <table className="w-full text-left text-xs text-slate-600">
+        <table className="w-full min-w-[650px] text-left text-xs text-slate-600">
           <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             <tr>
               <th className="px-4 py-3">Seq</th>

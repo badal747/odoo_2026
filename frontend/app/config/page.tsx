@@ -176,8 +176,8 @@ export default function SalaryConfigPage() {
             </span>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
-            <table className="w-full text-left text-xs text-slate-600">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-subtle overflow-x-auto">
+            <table className="w-full min-w-[700px] text-left text-xs text-slate-600">
               <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3">Seq #</th>

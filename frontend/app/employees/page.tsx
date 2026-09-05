@@ -19,14 +19,16 @@ import {
   CreditCard,
   X,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from "lucide-react";
 import api from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 export default function EmployeesPage() {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isAdmin = user?.role === "ADMIN" || hasRole(["ADMIN"]);
   const canCreateEmployee = hasRole(["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER"]);
 
   const [employees, setEmployees] = useState<any[]>([]);
@@ -42,6 +44,28 @@ export default function EmployeesPage() {
   const [activeEmployee, setActiveEmployee] = useState<any>(null);
   const [smartCounts, setSmartCounts] = useState<any>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+
+  // Remove Employee & User Confirmation Modal State
+  const [deletingEmployee, setDeletingEmployee] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!deletingEmployee) return;
+    try {
+      setIsDeleting(true);
+      await api.delete(`/employees/${deletingEmployee.id}`);
+      setEmployees((prev) => prev.filter((e) => e.id !== deletingEmployee.id));
+      if (activeEmployee?.id === deletingEmployee.id) {
+        setIsFormOpen(false);
+        setActiveEmployee(null);
+      }
+      setDeletingEmployee(null);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Failed to remove employee and user account");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Create Employee Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -259,9 +283,23 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-odoo-purple font-medium">
-                <span>View Full Hub</span>
-                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-medium">
+                <span className="text-odoo-purple flex items-center space-x-1">
+                  <span>View Full Hub</span>
+                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </span>
+                {isAdmin && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingEmployee(emp);
+                    }}
+                    className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    title="Remove User Account"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -269,45 +307,59 @@ export default function EmployeesPage() {
       ) : (
         /* LIST VIEW */
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Department</th>
-                <th className="px-4 py-3">Position</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredEmployees.map((emp) => (
-                <tr
-                  key={emp.id}
-                  onClick={() => handleOpenEmployee(emp)}
-                  className="hover:bg-purple-50/40 cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-3 font-semibold text-slate-900">{emp.employee_code}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900 flex items-center space-x-2">
-                    <img src={emp.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} className="w-6 h-6 rounded-full" />
-                    <span>{emp.first_name} {emp.last_name}</span>
-                  </td>
-                  <td className="px-4 py-3">{emp.department_name}</td>
-                  <td className="px-4 py-3">{emp.job_position_title}</td>
-                  <td className="px-4 py-3 text-slate-500">{emp.email}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      {emp.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button className="text-odoo-purple font-semibold hover:underline">Open Hub</button>
-                  </td>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Code</th>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Department</th>
+                  <th className="px-4 py-3">Position</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredEmployees.map((emp) => (
+                  <tr
+                    key={emp.id}
+                    onClick={() => handleOpenEmployee(emp)}
+                    className="hover:bg-purple-50/40 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 font-semibold text-slate-900">{emp.employee_code}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900 flex items-center space-x-2">
+                      <img src={emp.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"} className="w-6 h-6 rounded-full" />
+                      <span>{emp.first_name} {emp.last_name}</span>
+                    </td>
+                    <td className="px-4 py-3">{emp.department_name}</td>
+                    <td className="px-4 py-3">{emp.job_position_title}</td>
+                    <td className="px-4 py-3 text-slate-500">{emp.email}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {emp.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right space-x-2">
+                      <button className="text-odoo-purple font-semibold hover:underline">Open Hub</button>
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingEmployee(emp);
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded align-middle transition-colors inline-block"
+                          title="Remove User Account"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -329,12 +381,24 @@ export default function EmployeesPage() {
                   <p className="text-xs text-slate-500">{activeEmployee.job_position_title} &bull; {activeEmployee.employee_code}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsFormOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-2">
+                {isAdmin && (
+                  <button
+                    onClick={() => setDeletingEmployee(activeEmployee)}
+                    className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors"
+                    title="Delete Employee & Account"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Delete User</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsFormOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* SMART BUTTONS BAR (As required in PDF section A1, B2) */}
@@ -597,6 +661,56 @@ export default function EmployeesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Admin User Removal */}
+      {deletingEmployee && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center space-x-3 text-rose-600 mb-4">
+              <div className="p-3 bg-rose-50 rounded-xl">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Confirm User & Employee Removal</h3>
+                <p className="text-xs text-slate-500">This action is permanent and cannot be undone</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-4">
+              Are you sure you want to permanently remove employee <strong className="text-slate-900">{deletingEmployee.first_name} {deletingEmployee.last_name}</strong> ({deletingEmployee.employee_code})?
+            </p>
+            <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              Removing this employee will delete their linked user credentials, contracts, attendance history, and time-off records.
+            </p>
+
+            <div className="flex items-center justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setDeletingEmployee(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg shadow-sm transition-all flex items-center space-x-1.5 text-xs"
+              >
+                {isDeleting ? (
+                  <span>Removing...</span>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Confirm & Remove</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

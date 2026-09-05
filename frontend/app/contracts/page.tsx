@@ -134,8 +134,8 @@ function ContractsContent() {
       </div>
 
       {/* Contracts Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-subtle">
-        <table className="w-full text-left text-xs text-slate-600">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-subtle overflow-x-auto">
+        <table className="w-full min-w-[700px] text-left text-xs text-slate-600">
           <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             <tr>
               <th className="px-4 py-3">Contract Code</th>
@@ -217,7 +217,7 @@ function ContractsContent() {
             )}
 
             <form onSubmit={handleCreateContract} className="p-6 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Contract Code *</label>
                   <input
@@ -247,7 +247,7 @@ function ContractsContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Monthly Base Wage (₹) *</label>
                   <input
@@ -273,7 +273,7 @@ function ContractsContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Start Date *</label>
                   <input
@@ -295,7 +295,7 @@ function ContractsContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Department *</label>
                   <select

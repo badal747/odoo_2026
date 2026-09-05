@@ -23,6 +23,7 @@ class ManualCorrectionRequest(BaseModel):
 @router.get("")
 async def list_attendances(
     employee_id: Optional[str] = None,
+    date: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     current_user: User = Depends(get_current_user)
@@ -36,7 +37,16 @@ async def list_attendances(
     elif employee_id:
         query["employee_id"] = employee_id
 
-    if start_date and end_date:
+    if date and date != "ALL":
+        try:
+            cleaned = date.split("T")[0]
+            d_parts = [int(p) for p in cleaned.split("-")]
+            day_start = datetime(d_parts[0], d_parts[1], d_parts[2], 0, 0, 0)
+            day_end = datetime(d_parts[0], d_parts[1], d_parts[2], 23, 59, 59, 999999)
+            query["date"] = {"$gte": day_start, "$lte": day_end}
+        except Exception:
+            pass
+    elif start_date and end_date:
         s = datetime.fromisoformat(start_date)
         e = datetime.fromisoformat(end_date)
         query["date"] = {"$gte": s, "$lte": e}

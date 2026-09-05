@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 function AttendanceContent() {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const canManageAttendance = hasRole(["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER"]);
 
   const searchParams = useSearchParams();
@@ -78,7 +78,7 @@ function AttendanceContent() {
         check_out: editForm.check_out ? new Date(editForm.check_out).toISOString() : null,
         status: editForm.status,
         manual_edit_note: editForm.manual_edit_note,
-        edited_by_user_id: "admin",
+        edited_by_user_id: user?.user_id || user?.email || "supervisor",
       });
       setIsEditOpen(false);
       fetchData();

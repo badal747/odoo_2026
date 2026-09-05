@@ -67,6 +67,14 @@ async def get_dashboard_stats(
     on_time = len([a for a in attendances if a.status == AttendanceStatus.PRESENT])
     attendance_health = round((on_time / total_att * 100), 1) if total_att > 0 else 100.0
 
+    # Dynamic real-time available periods from actual Payruns in MongoDB
+    all_payruns = await Payrun.find_all().to_list()
+    available_periods = sorted(list({p.period_start.strftime("%Y-%m") for p in all_payruns if p.period_start}), reverse=True)
+    if not available_periods:
+        available_periods = [
+            (now - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(4)
+        ]
+
     return {
         "total_net_paid": round(total_net_paid, 2),
         "total_payslips_generated": total_payslips,
@@ -74,7 +82,8 @@ async def get_dashboard_stats(
         "approved_time_off_days": round(total_leave_days, 1),
         "attendance_health_percentage": attendance_health,
         "active_employees_count": active_employees_count,
-        "filtered_employees_count": active_employees_count
+        "filtered_employees_count": active_employees_count,
+        "available_periods": available_periods,
     }
 
 @router.get("/attendance-overview")

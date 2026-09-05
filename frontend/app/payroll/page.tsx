@@ -35,11 +35,20 @@ export default function PayrollPage() {
   // TWO-STEP WIZARD MODAL STATE (Section B5 in PDF)
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
+  // Dynamic real-time date calculation
+  const now = new Date();
+  const currentMonthName = now.toLocaleString("default", { month: "long", year: "numeric" });
+  const curYear = now.getFullYear();
+  const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(curYear, now.getMonth() + 1, 0).getDate();
+  const defaultStart = `${curYear}-${curMonth}-01`;
+  const defaultEnd = `${curYear}-${curMonth}-${String(lastDay).padStart(2, "0")}`;
+
   const [wizardScope, setWizardScope] = useState({
-    name: "March 2026 Regular Payroll",
+    name: `${currentMonthName} Regular Payroll`,
     salary_structure_id: "",
-    period_start: "2026-03-01",
-    period_end: "2026-03-31",
+    period_start: defaultStart,
+    period_end: defaultEnd,
   });
   const [eligibleStaff, setEligibleStaff] = useState<any[]>([]);
   const [selectedEmpIds, setSelectedEmpIds] = useState<string[]>([]);
@@ -55,9 +64,9 @@ export default function PayrollPage() {
   // Interactive Pre-Validation Warning Resolver State (Section B6 in PDF)
   const [resolvingSlip, setResolvingSlip] = useState<any>(null);
   const [bankFormData, setBankFormData] = useState({
-    bank_name: "HDFC Bank",
-    account_number: "50100492817293",
-    pan_or_tax_id: "ABCDE1234F",
+    bank_name: "",
+    account_number: "",
+    pan_or_tax_id: "",
   });
   const [resolverLoading, setResolverLoading] = useState(false);
 

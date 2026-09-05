@@ -37,10 +37,10 @@ function ContractsContent() {
     employee_id: filterEmployeeId || "",
     department_id: "",
     job_position_id: "",
-    start_date: "2026-01-01",
+    start_date: new Date().toISOString().split("T")[0],
     end_date: "",
     status: "RUNNING",
-    wage: 65000,
+    wage: 0,
     salary_structure_id: "",
   });
 

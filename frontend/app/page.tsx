@@ -41,16 +41,6 @@ import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import DemoTourModal from "@/components/DemoTourModal";
 
-// Dynamic import for Three.js Canvas to avoid SSR issues
-const ThreeCanvas = dynamic(() => import("@/components/ThreeCanvas"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[220px] rounded-xl bg-slate-900 animate-pulse flex items-center justify-center text-slate-400 text-xs">
-      Loading 3D Organizational Mesh...
-    </div>
-  ),
-});
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>({
@@ -84,12 +74,27 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
 
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>("");
+  const [liveClock, setLiveClock] = useState<string>("");
+
   useEffect(() => {
     fetchDepartments();
   }, []);
 
   useEffect(() => {
+    const clockInterval = setInterval(() => {
+      setLiveClock(new Date().toLocaleTimeString());
+    }, 1000);
+    setLiveClock(new Date().toLocaleTimeString());
+    return () => clearInterval(clockInterval);
+  }, []);
+
+  useEffect(() => {
     fetchDashboardData();
+    const pollInterval = setInterval(() => {
+      fetchDashboardData(true);
+    }, 12000);
+    return () => clearInterval(pollInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod, selectedDept, selectedType]);
 
@@ -102,9 +107,9 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (silent: boolean = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const params = new URLSearchParams();
       if (selectedPeriod !== "ALL") params.append("period", selectedPeriod);
       if (selectedDept !== "ALL") params.append("department_id", selectedDept);
@@ -129,10 +134,12 @@ export default function DashboardPage() {
       if (trendsRes.status === "fulfilled") setMonthlyTrends(trendsRes.value.data || []);
       if (alertsRes.status === "fulfilled") setAlerts(alertsRes.value.data || []);
       if (attRes.status === "fulfilled") setAttendanceOverview(attRes.value.data || {});
+
+      setLastSyncedTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -152,39 +159,100 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Header with Title & 3D Interactive Canvas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-        <div className="lg:col-span-1 space-y-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live HR &amp; Payroll Analytics</span>
-              {loading && <span className="text-[10px] text-slate-400 font-normal">(Syncing...)</span>}
+      {/* 1. Header with Real-Time Operations Pulse (Zero GPU Lag, 100% Real-Time Data) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div className="lg:col-span-1 flex flex-col justify-between space-y-3 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Real-Time Operations</span>
+                {loading && <span className="text-[10px] text-slate-400 font-normal">(Syncing...)</span>}
+              </div>
+              <button
+                onClick={() => setIsDemoTourOpen(true)}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-black hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all"
+              >
+                <Compass className="w-3.5 h-3.5 text-white" />
+                <span>Demo Guide</span>
+              </button>
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Real-time synchronization across Employees, Contracts, Attendance logs, Time Off allocations, and Payroll disbursements.
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center space-x-1.5 font-mono">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span className="font-semibold text-slate-700">{liveClock || "Live Clock"}</span>
             </div>
             <button
-              onClick={() => setIsDemoTourOpen(true)}
-              className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-black hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all"
+              onClick={() => fetchDashboardData(false)}
+              disabled={loading}
+              className="inline-flex items-center space-x-1 text-[11px] font-semibold text-slate-700 hover:text-black hover:underline"
+              title="Force Refresh Data"
             >
-              <Compass className="w-3.5 h-3.5 text-white" />
-              <span>Hackathon Demo Guide</span>
+              <RotateCcw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+              <span>Sync Now</span>
             </button>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Real-time synchronization across Employees, Contracts, Attendance logs, Time Off allocations, and Payroll disbursements.
-          </p>
-          <div className="pt-1 flex items-center space-x-2">
-            <span className="text-xs text-slate-400 font-medium">Data Engine:</span>
-            <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>MongoDB Atlas Connected</span>
-            </span>
           </div>
         </div>
 
-        {/* 3D Three.js Interactive Hero Canvas */}
-        <div className="lg:col-span-2">
-          <ThreeCanvas />
+        {/* Real-Time Live Pulse Grid (Replaced heavy WebGL 3D Canvas with ultra-fast real-time cards) */}
+        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Live Staff</span>
+              <div className="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center">
+                <Users className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-slate-900">{stats?.active_employees_count ?? 0}</div>
+              <p className="text-[10px] text-slate-500 mt-0.5">Active in database</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Punctuality</span>
+              <div className="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-slate-900">{attendanceOverview?.on_time_rate ?? 100}%</div>
+              <p className="text-[10px] text-emerald-600 font-medium mt-0.5">{attendanceOverview?.present_count ?? 0} present today</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Payslips Run</span>
+              <div className="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center">
+                <CreditCard className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-slate-900">{stats?.total_payslips_generated ?? 0}</div>
+              <p className="text-[10px] text-slate-500 mt-0.5">Generated &amp; verified</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Attention</span>
+              <div className="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-slate-900">{alerts?.length ?? 0}</div>
+              <p className="text-[10px] text-amber-600 font-medium mt-0.5">Pending audit items</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -253,7 +321,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs">
-          {/* Period Filter */}
+          {/* Dynamic Real-Time Period Filter */}
           <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <span className="text-slate-500 font-medium text-[11px]">Period:</span>
@@ -263,9 +331,17 @@ export default function DashboardPage() {
               className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Periods (YTD)</option>
-              <option value="2026-03">March 2026</option>
-              <option value="2026-02">February 2026</option>
-              <option value="2026-01">January 2026</option>
+              {(stats?.available_periods || []).map((p: string) => {
+                const parts = p.split("-");
+                const y = parseInt(parts[0]);
+                const m = parseInt(parts[1]);
+                const monthName = new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
+                return (
+                  <option key={p} value={p}>
+                    {monthName} {y}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

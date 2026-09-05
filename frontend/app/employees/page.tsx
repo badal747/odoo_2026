@@ -55,7 +55,7 @@ export default function EmployeesPage() {
     job_position_id: "",
     manager_id: "",
     working_schedule_id: "",
-    bank_name: "HDFC Bank",
+    bank_name: "",
     account_number: "",
     pan_or_tax_id: ""
   });

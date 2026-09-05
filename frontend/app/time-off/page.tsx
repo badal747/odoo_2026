@@ -32,14 +32,19 @@ function TimeOffContent() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Dynamic real-time calendar dates
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+  const curYear = now.getFullYear();
+
   // New Request Modal
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [reqForm, setReqForm] = useState({
     employee_id: filterEmployeeId || "",
     time_off_type_id: "",
-    start_date: "2026-03-10",
-    end_date: "2026-03-12",
-    duration_units: 3.0,
+    start_date: todayStr,
+    end_date: todayStr,
+    duration_units: 1.0,
     reason: "",
   });
   const [reqError, setReqError] = useState("");
@@ -50,8 +55,8 @@ function TimeOffContent() {
     employee_id: filterEmployeeId || "",
     time_off_type_id: "",
     allocated_units: 15.0,
-    valid_from: "2026-01-01",
-    valid_to: "2026-12-31",
+    valid_from: `${curYear}-01-01`,
+    valid_to: `${curYear}-12-31`,
   });
 
   useEffect(() => {

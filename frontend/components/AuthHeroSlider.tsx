@@ -89,7 +89,7 @@ export default function AuthHeroSlider() {
       : "Active Employees";
 
   return (
-    <div className="hidden lg:flex lg:w-1/2 min-h-screen relative p-12 xl:p-16 flex-col justify-between overflow-hidden bg-slate-950 text-white select-none">
+    <div className="hidden lg:flex lg:w-1/2 h-full min-h-0 relative p-10 xl:p-14 flex-col justify-between overflow-hidden bg-slate-950 text-white select-none">
       {/* 5 Background Images with Cinematic Dissolve Fade */}
       {SLIDES.map((item, idx) => (
         <div

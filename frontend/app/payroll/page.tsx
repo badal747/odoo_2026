@@ -10,21 +10,14 @@ import {
   AlertTriangle,
   Send,
   Printer,
-  Calendar,
-  Layers,
-  Users,
-  DollarSign,
   ArrowRight,
   ArrowLeft,
   X,
   ExternalLink,
   Lock,
   Mail,
-  ShieldCheck,
   Eye,
-  Download,
   Sparkles,
-  RefreshCw,
   FileCheck,
   Check
 } from "lucide-react";
@@ -69,6 +62,7 @@ export default function PayrollPage() {
 
   useEffect(() => {
     fetchPayruns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPayruns = async () => {
@@ -276,7 +270,10 @@ export default function PayrollPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Column: Payrun Batches */}
         <div className="lg:col-span-1 space-y-3">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Payroll Batches</h2>
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payroll Batches</h2>
+            {loading && <span className="text-[10px] text-odoo-purple font-medium animate-pulse">Syncing...</span>}
+          </div>
           {payruns.map((p) => {
             const isSelected = selectedPayrun && selectedPayrun.id === p.id;
             const isPaid = p.status === "PAID";

@@ -12,7 +12,6 @@ import {
   Sliders,
   BarChart3,
   LogOut,
-  User as UserIcon,
   Compass,
 } from "lucide-react";
 import { useAuth, UserRole } from "@/lib/auth-context";

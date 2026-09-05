@@ -12,14 +12,12 @@ import {
   Building2,
   DollarSign,
   Activity,
-  ArrowUpRight,
   Filter,
   RotateCcw,
   Compass,
   Clock,
   Timer,
   AlertCircle,
-  Layers,
   Edit3
 } from "lucide-react";
 import {
@@ -30,8 +28,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   Area,
   AreaChart,
 } from "recharts";
@@ -87,6 +83,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod, selectedDept, selectedType]);
 
   const fetchDepartments = async () => {
@@ -147,8 +144,9 @@ export default function DashboardPage() {
         <div className="lg:col-span-1 space-y-2">
           <div className="flex items-center space-x-2">
             <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-odoo-purple/10 text-odoo-purple text-xs font-semibold">
-              <Activity className="w-3.5 h-3.5" />
+              <Activity className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Live HR & Payroll Analytics</span>
+              {loading && <span className="text-[10px] font-normal opacity-70 animate-pulse">(Syncing...)</span>}
             </div>
             <button
               onClick={() => setIsDemoTourOpen(true)}

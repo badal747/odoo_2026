@@ -5,13 +5,9 @@ import Link from "next/link";
 import {
   X,
   Compass,
-  CheckCircle2,
-  ArrowRight,
   Sparkles,
-  Users,
   CreditCard,
   Calendar,
-  Clock,
   ShieldCheck,
   FileSpreadsheet,
   Mail,
@@ -182,7 +178,7 @@ export default function DemoTourModal({ isOpen, onClose }: DemoTourModalProps) {
                   <div className="flex-1">
                     <h3 className="text-xs font-bold text-slate-900">Pre-Validation Warning Resolver (1-Click Fix)</h3>
                     <p className="text-[11px] text-slate-500 mt-1">
-                      In the payslips table, notice the amber badge on Eva Green ("Missing bank account number"). Click <b>Resolve</b> to open the drawer, hit <b>Auto-fill Standard Bank Details</b>, and submit. The warning vanishes instantaneously!
+                      In the payslips table, notice the amber badge on Eva Green (&quot;Missing bank account number&quot;). Click <b>Resolve</b> to open the drawer, hit <b>Auto-fill Standard Bank Details</b>, and submit. The warning vanishes instantaneously!
                     </p>
                   </div>
                 </div>
@@ -325,7 +321,7 @@ export default function DemoTourModal({ isOpen, onClose }: DemoTourModalProps) {
             onClick={onClose}
             className="px-4 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
           >
-            Got it, Let's Explore!
+            Got it, Let&apos;s Explore!
           </button>
         </div>
       </div>

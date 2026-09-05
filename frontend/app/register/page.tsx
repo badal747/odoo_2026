@@ -20,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth, UserRole } from "@/lib/auth-context";
+import AuthHeroSlider from "@/components/AuthHeroSlider";
 
 interface RoleOption {
   role: UserRole;
@@ -35,21 +36,6 @@ const ROLES: RoleOption[] = [
   { role: "ADMIN", label: "Admin", icon: Shield },
 ];
 
-const SLIDES = [
-  {
-    tag: "ZERO-CONFLICT ARCHITECTURE",
-    title: "Dedicated Employee Profile & Contract Provisioning",
-    description:
-      "Every new user is automatically mapped to their own unique employee code, running employment contract, and personal leave balance.",
-  },
-  {
-    tag: "ROLE-BASED INTELLIGENCE",
-    title: "Strict Data Governance & Protected Permissions",
-    description:
-      "Employees access personal payslips and attendance, while payroll managers execute batch runs with complete data confidentiality.",
-  },
-];
-
 export default function RegisterPage() {
   const { register } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole>("EMPLOYEE");
@@ -61,7 +47,6 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [currentSlide, setCurrentSlide] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,65 +291,8 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* RIGHT SIDE: Matching Real Office Boardroom Photo & Info */}
-      <div className="hidden lg:flex lg:w-1/2 min-h-screen relative p-12 xl:p-16 flex-col justify-between overflow-hidden bg-slate-950 text-white select-none">
-        {/* Real Office Boardroom Photo */}
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-700 scale-100"
-          style={{
-            backgroundImage: `url('/hr_payroll_hero.jpg')`,
-          }}
-        />
-
-        {/* Elegant Dark Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/50" />
-
-        {/* Top Row: Brand Badge + 1500+ Employees Badge */}
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center space-x-2.5 px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm">
-            <div className="w-6 h-6 rounded-lg bg-white text-slate-900 flex items-center justify-center font-black text-xs">
-              P
-            </div>
-            <span className="text-xs font-bold tracking-tight text-white">PeoplePay360</span>
-          </div>
-
-          <div className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] text-amber-300 font-medium shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>1,500+ Active Employees</span>
-          </div>
-        </div>
-
-        {/* Bottom Carousel Hero Information */}
-        <div className="relative z-10 space-y-4 max-w-xl">
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[10px] font-bold uppercase tracking-wider text-teal-300">
-            <CreditCard className="w-3 h-3" />
-            <span>{SLIDES[currentSlide].tag}</span>
-          </div>
-
-          <h2 className="text-2xl xl:text-3xl font-extrabold text-white tracking-tight leading-snug">
-            {SLIDES[currentSlide].title}
-          </h2>
-
-          <p className="text-xs xl:text-sm text-slate-200/90 leading-relaxed">
-            {SLIDES[currentSlide].description}
-          </p>
-
-          {/* Slider Pagination Indicator Dots */}
-          <div className="flex items-center space-x-2 pt-2">
-            {SLIDES.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setCurrentSlide(idx)}
-                className={`transition-all duration-300 h-1.5 rounded-full ${
-                  currentSlide === idx ? "w-7 bg-white" : "w-1.5 bg-white/40 hover:bg-white/70"
-                }`}
-                aria-label={`Slide ${idx + 1}`}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* RIGHT SIDE: Auto-Rotating 5-Picture AI Hero Slider */}
+      <AuthHeroSlider />
     </div>
   );
 }

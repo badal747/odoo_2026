@@ -115,7 +115,7 @@ export default function SalaryConfigPage() {
         {canEditRules ? (
           <button
             onClick={() => setIsRuleModalOpen(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Add Salary Rule</span>
@@ -419,7 +419,7 @@ export default function SalaryConfigPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-odoo-purple text-white rounded-lg font-semibold hover:bg-odoo-purpleHover"
+                  className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-slate-800 shadow-sm transition-all"
                 >
                   Save Salary Rule
                 </button>

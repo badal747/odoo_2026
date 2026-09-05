@@ -280,7 +280,7 @@ export default function PayrollPage() {
             setWizardStep(1);
             setIsWizardOpen(true);
           }}
-          className="flex items-center space-x-1.5 px-4 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+          className="flex items-center space-x-1.5 px-4 py-2 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
         >
           <Plus className="w-4 h-4" />
           <span>New Payrun Wizard</span>
@@ -374,7 +374,7 @@ export default function PayrollPage() {
                       </button>
                       <button
                         onClick={handleValidate}
-                        className="px-3.5 py-1.5 bg-odoo-purple hover:bg-odoo-purpleHover text-white rounded-lg text-xs font-semibold shadow-sm flex items-center space-x-1.5"
+                        className="px-3.5 py-1.5 bg-black hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center space-x-1.5"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>Validate Batch</span>
@@ -625,7 +625,7 @@ export default function PayrollPage() {
                   <button
                     type="submit"
                     disabled={wizardLoading}
-                    className="px-4 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white rounded-lg font-semibold flex items-center space-x-1"
+                    className="px-4 py-2 bg-black hover:bg-slate-800 text-white rounded-lg font-semibold flex items-center space-x-1"
                   >
                     <span>Continue to Staff Selection</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -823,7 +823,7 @@ export default function PayrollPage() {
                 <button
                   type="submit"
                   disabled={resolverLoading}
-                  className="px-4 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
+                  className="px-4 py-2 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
                 >
                   {resolverLoading ? (
                     <span>Saving...</span>
@@ -1024,7 +1024,7 @@ export default function PayrollPage() {
               </span>
               <button
                 onClick={() => setIsEmailDrawerOpen(false)}
-                className="px-4 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm"
+                className="px-4 py-2 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm"
               >
                 Close Dispatcher
               </button>

@@ -20,29 +20,45 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const router = useRouter();
 
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+
   useEffect(() => {
-    if (!loading && !user && pathname !== "/login" && pathname !== "/register") {
-      router.push("/login");
+    if (!loading) {
+      if (!user && !isAuthPage) {
+        router.replace("/login");
+      } else if (user && isAuthPage) {
+        router.replace("/");
+      }
     }
-  }, [user, loading, pathname, router]);
+  }, [user, loading, isAuthPage, router]);
 
   // While checking session on mount
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-xs font-semibold text-slate-400 animate-pulse">
-          Validating Security Credentials...
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center font-black text-base shadow-sm animate-pulse">
+            P
+          </div>
+          <div className="text-xs font-semibold text-slate-400">
+            Validating Session...
+          </div>
         </div>
       </div>
     );
   }
 
-  // Allow unrestricted access to /login and /register
-  if (pathname === "/login" || pathname === "/register") {
+  // If already authenticated and visiting /login or /register, return null while redirecting to /
+  if (user && isAuthPage) {
+    return null;
+  }
+
+  // Allow unrestricted access to /login and /register for unauthenticated users
+  if (!user && isAuthPage) {
     return <>{children}</>;
   }
 
-  // If unauthenticated, will redirect in useEffect, return null
+  // If unauthenticated and on protected route, return null while redirecting to /login
   if (!user) {
     return null;
   }
@@ -58,18 +74,18 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
 
     if (!isPermitted) {
       return (
-        <div className="max-w-lg mx-auto mt-16 p-8 bg-white rounded-2xl border border-rose-200 shadow-floating text-center space-y-4">
+        <div className="max-w-lg mx-auto mt-16 p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-center space-y-4">
           <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
             <ShieldAlert className="w-7 h-7" />
           </div>
           <h2 className="text-lg font-bold text-slate-900">403 Forbidden: Access Restricted</h2>
           <p className="text-xs text-slate-500 leading-relaxed">
-            According to the PeoplePay360 security policy, your assigned role (<b className="text-slate-800">{user.role}</b>) does not possess permission to access this module.
+            According to the PeoplePay360 security policy, your assigned role (<b className="text-slate-900">{user.role}</b>) does not possess permission to access this module.
           </p>
           <div className="pt-2">
             <Link
               href="/"
-              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-black hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Return to Permitted Dashboard</span>

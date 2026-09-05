@@ -165,7 +165,7 @@ function TimeOffContent() {
           {activeTab === "requests" && (
             <button
               onClick={() => setIsRequestModalOpen(true)}
-              className="flex items-center space-x-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>Submit Leave Request</span>
@@ -174,7 +174,7 @@ function TimeOffContent() {
           {activeTab === "allocations" && canManageLeaves && (
             <button
               onClick={() => setIsAllocModalOpen(true)}
-              className="flex items-center space-x-1.5 px-3.5 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>Allocate Balance</span>
@@ -486,7 +486,7 @@ function TimeOffContent() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                  className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-slate-800 shadow-sm transition-all"
                 >
                   Submit Request
                 </button>
@@ -584,7 +584,7 @@ function TimeOffContent() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-odoo-purple text-white rounded-lg font-semibold hover:bg-odoo-purpleHover"
+                  className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-slate-800 shadow-sm transition-all"
                 >
                   Approve & Assign Quota
                 </button>

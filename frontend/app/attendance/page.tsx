@@ -265,9 +265,9 @@ function AttendanceContent() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-odoo-teal text-white rounded-lg font-semibold hover:bg-odoo-tealHover"
+                  className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-slate-800 shadow-sm transition-all"
                 >
-                  Save Correction & Audit Note
+                  Save Correction &amp; Audit Note
                 </button>
               </div>
             </form>

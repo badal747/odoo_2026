@@ -29,19 +29,19 @@ export default function DemoTourModal({ isOpen, onClose }: DemoTourModalProps) {
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-3xl rounded-2xl shadow-floating border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="bg-gradient-to-r from-odoo-purpleDark via-odoo-purple to-odoo-teal p-5 text-white flex items-center justify-between">
+        <div className="bg-black p-5 text-white flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-              <Compass className="w-5 h-5 text-amber-300 animate-spin-slow" />
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+              <Compass className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-base font-bold">Hackathon Demo & Evaluation Guide</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-900">
+                <h2 className="text-base font-bold">Hackathon Demo &amp; Evaluation Guide</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-black">
                   Odoo 2026
                 </span>
               </div>
-              <p className="text-xs text-white/80 mt-0.5">
+              <p className="text-xs text-slate-300 mt-0.5">
                 Complete walkthrough of required end-to-end user journeys (PDF Section 8)
               </p>
             </div>
@@ -60,7 +60,7 @@ export default function DemoTourModal({ isOpen, onClose }: DemoTourModalProps) {
             onClick={() => setActiveTab("scenario1")}
             className={`pb-3 flex items-center space-x-2 border-b-2 transition-all ${
               activeTab === "scenario1"
-                ? "border-odoo-purple text-odoo-purple"
+                ? "border-black text-black"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -71,23 +71,23 @@ export default function DemoTourModal({ isOpen, onClose }: DemoTourModalProps) {
             onClick={() => setActiveTab("scenario2")}
             className={`pb-3 flex items-center space-x-2 border-b-2 transition-all ${
               activeTab === "scenario2"
-                ? "border-odoo-purple text-odoo-purple"
+                ? "border-black text-black"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
             <Calendar className="w-4 h-4" />
-            <span>Scenario 2: Leave & Allocation</span>
+            <span>Scenario 2: Leave &amp; Allocation</span>
           </button>
           <button
             onClick={() => setActiveTab("roadmap")}
             className={`pb-3 flex items-center space-x-2 border-b-2 transition-all ${
               activeTab === "roadmap"
-                ? "border-odoo-purple text-odoo-purple"
+                ? "border-black text-black"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
             <Sparkles className="w-4 h-4 text-amber-500" />
-            <span>Future Roadmap & Extensibility</span>
+            <span>Future Roadmap &amp; Extensibility</span>
           </button>
         </div>
 
@@ -319,7 +319,7 @@ export default function DemoTourModal({ isOpen, onClose }: DemoTourModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+            className="px-4 py-2 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
           >
             Got it, Let&apos;s Explore!
           </button>

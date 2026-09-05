@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   TrendingUp,
   Users,
@@ -18,7 +19,11 @@ import {
   Clock,
   Timer,
   AlertCircle,
-  Edit3
+  Edit3,
+  Sliders,
+  ArrowUpRight,
+  ShieldCheck,
+  Check
 } from "lucide-react";
 import {
   BarChart,
@@ -33,6 +38,7 @@ import {
 } from "recharts";
 import api from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 import DemoTourModal from "@/components/DemoTourModal";
 
 // Dynamic import for Three.js Canvas to avoid SSR issues
@@ -46,6 +52,7 @@ const ThreeCanvas = dynamic(() => import("@/components/ThreeCanvas"), {
 });
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<any>({
     total_net_paid: 0,
     total_payslips_generated: 0,
@@ -89,7 +96,7 @@ export default function DashboardPage() {
   const fetchDepartments = async () => {
     try {
       const res = await api.get("/departments");
-      setDepartments(res.data);
+      setDepartments(res.data || []);
     } catch (err) {
       console.error("Failed to load departments:", err);
     }
@@ -109,7 +116,7 @@ export default function DashboardPage() {
       const attParams = new URLSearchParams();
       if (selectedDept !== "ALL") attParams.append("department_id", selectedDept);
 
-      const [statsRes, deptRes, trendsRes, alertsRes, attRes] = await Promise.all([
+      const [statsRes, deptRes, trendsRes, alertsRes, attRes] = await Promise.allSettled([
         api.get(`/dashboard/stats?${params.toString()}`),
         api.get(`/dashboard/department-costs?${deptCostsParams.toString()}`),
         api.get("/dashboard/monthly-trends"),
@@ -117,17 +124,23 @@ export default function DashboardPage() {
         api.get(`/dashboard/attendance-overview?${attParams.toString()}`),
       ]);
 
-      setStats(statsRes.data);
-      setDeptCosts(deptRes.data);
-      setMonthlyTrends(trendsRes.data);
-      setAlerts(alertsRes.data);
-      setAttendanceOverview(attRes.data);
+      if (statsRes.status === "fulfilled") setStats(statsRes.value.data || {});
+      if (deptRes.status === "fulfilled") setDeptCosts(deptRes.value.data || []);
+      if (trendsRes.status === "fulfilled") setMonthlyTrends(trendsRes.value.data || []);
+      if (alertsRes.status === "fulfilled") setAlerts(alertsRes.value.data || []);
+      if (attRes.status === "fulfilled") setAttendanceOverview(attRes.value.data || {});
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  const userRole = user?.role || "EMPLOYEE";
+  const canAccessPayroll = ["ADMIN", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"].includes(userRole);
+  const canAccessEmployees = ["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"].includes(userRole);
+  const canAccessContracts = ["ADMIN", "HR_MANAGER", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"].includes(userRole);
+  const canAccessConfig = ["ADMIN", "HR_PAYROLL_MANAGER", "HR_PAYROLL_USER"].includes(userRole);
 
   const handleResetFilters = () => {
     setSelectedPeriod("ALL");
@@ -141,18 +154,18 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* 1. Header with Title & 3D Interactive Canvas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-        <div className="lg:col-span-1 space-y-2">
-          <div className="flex items-center space-x-2">
-            <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-odoo-purple/10 text-odoo-purple text-xs font-semibold">
-              <Activity className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Live HR & Payroll Analytics</span>
-              {loading && <span className="text-[10px] font-normal opacity-70 animate-pulse">(Syncing...)</span>}
+        <div className="lg:col-span-1 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Live HR &amp; Payroll Analytics</span>
+              {loading && <span className="text-[10px] text-slate-400 font-normal">(Syncing...)</span>}
             </div>
             <button
               onClick={() => setIsDemoTourOpen(true)}
-              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold hover:bg-amber-200 transition-colors"
+              className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-black hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all"
             >
-              <Compass className="w-3.5 h-3.5 text-amber-700" />
+              <Compass className="w-3.5 h-3.5 text-white" />
               <span>Hackathon Demo Guide</span>
             </button>
           </div>
@@ -160,9 +173,9 @@ export default function DashboardPage() {
           <p className="text-xs text-slate-500 leading-relaxed">
             Real-time synchronization across Employees, Contracts, Attendance logs, Time Off allocations, and Payroll disbursements.
           </p>
-          <div className="pt-2 flex items-center space-x-2">
-            <span className="text-xs text-slate-400 font-medium">Active Database:</span>
-            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+          <div className="pt-1 flex items-center space-x-2">
+            <span className="text-xs text-slate-400 font-medium">Data Engine:</span>
+            <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               <span>MongoDB Atlas Connected</span>
             </span>
@@ -175,13 +188,65 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2. MULTI-DIMENSIONAL FILTER BAR (Section A7 in Hackathon PDF) */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center space-x-2 text-xs font-bold text-slate-700">
-          <Filter className="w-4 h-4 text-odoo-purple" />
+      {/* 2. EXECUTIVE QUICK ACTION RIBBON (Solid Black Action Buttons) */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 rounded-full bg-black" />
+          <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Quick Actions</span>
+          <span className="text-[11px] text-slate-400 hidden md:inline">&bull; Role-tailored workspace shortcuts</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {canAccessPayroll && (
+            <Link
+              href="/payroll"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Process Payrun</span>
+            </Link>
+          )}
+          {canAccessEmployees && (
+            <Link
+              href="/employees"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Staff Directory</span>
+            </Link>
+          )}
+          <Link
+            href="/attendance"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Attendance Hub</span>
+          </Link>
+          <Link
+            href="/time-off"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-semibold rounded-lg shadow-sm transition-all"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Time Off Portal</span>
+          </Link>
+          {canAccessConfig && (
+            <Link
+              href="/config"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-semibold rounded-lg shadow-sm transition-all"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Salary Rules</span>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* 3. MULTI-DIMENSIONAL FILTER BAR (Section A7 in Hackathon PDF) */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center space-x-2 text-xs font-bold text-slate-900">
+          <Filter className="w-4 h-4 text-slate-900" />
           <span>Multi-Dimensional Filters:</span>
           {hasActiveFilters && (
-            <span className="px-2 py-0.5 rounded-full bg-purple-50 text-odoo-purple text-[10px] font-bold border border-purple-200">
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-200">
               Active Filters Applied
             </span>
           )}
@@ -239,11 +304,11 @@ export default function DashboardPage() {
             </select>
           </div>
 
-          {/* Reset Filters */}
+          {/* Reset Filters (Solid Black Button) */}
           {hasActiveFilters && (
             <button
               onClick={handleResetFilters}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-black hover:bg-slate-800 text-white font-semibold rounded-lg shadow-sm transition-all"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
@@ -252,16 +317,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 3. Operational Alerts Panel (Pre-validation Warnings) */}
+      {/* 4. Operational Alerts Panel (Pre-validation Warnings) */}
       {alerts && alerts.length > 0 && (
-        <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 shadow-subtle">
+        <div className="bg-white border border-amber-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center space-x-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-amber-600" />
-            <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider">Operational Attention Items</h3>
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Operational Attention Items</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {alerts.map((alt, idx) => (
-              <div key={idx} className="flex items-center space-x-2 text-xs text-amber-800 bg-white/80 px-3 py-2 rounded-lg border border-amber-200/60 shadow-sm">
+              <div key={idx} className="flex items-center space-x-2 text-xs text-slate-700 bg-amber-50/50 px-3 py-2 rounded-lg border border-amber-200/70">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                 <span className="font-medium truncate">{alt.message}</span>
               </div>
@@ -270,17 +335,17 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 4. KPI Stat Cards */}
+      {/* 5. KPI Stat Cards (White Theme with Solid Black/Dark Accents) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Net Paid */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-subtle hover:shadow-elevated transition-shadow">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Net Salary Paid</p>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center shadow-sm">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-2">{formatCurrency(stats.total_net_paid)}</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-2">{formatCurrency(stats?.total_net_paid ?? 0)}</h2>
           <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center">
             <TrendingUp className="w-3 h-3 mr-1" />
             <span>{selectedPeriod === "ALL" ? "All historical disbursements" : `${selectedPeriod} disbursements`}</span>
@@ -288,51 +353,51 @@ export default function DashboardPage() {
         </div>
 
         {/* Payslips Generated */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-subtle hover:shadow-elevated transition-shadow">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payslips Processed</p>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-odoo-purple flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-sm">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-2">{stats.total_payslips_generated}</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-2">{stats?.total_payslips_generated ?? 0}</h2>
           <p className="text-[11px] text-slate-500 font-medium mt-1 flex items-center">
-            <span>Across {stats.active_employees_count} active staff</span>
+            <span>Across {stats?.active_employees_count ?? 0} active staff</span>
           </p>
         </div>
 
         {/* Average Monthly Salary */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-subtle hover:shadow-elevated transition-shadow">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avg Base Salary</p>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-slate-800 text-white flex items-center justify-center shadow-sm">
               <Building2 className="w-4 h-4" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-2">{formatCurrency(stats.average_salary)}</h2>
-          <p className="text-[11px] text-blue-600 font-medium mt-1">Filtered running contracts</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-2">{formatCurrency(stats?.average_salary ?? 0)}</h2>
+          <p className="text-[11px] text-slate-500 font-medium mt-1">Filtered active contracts</p>
         </div>
 
         {/* Attendance Health Score */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-subtle hover:shadow-elevated transition-shadow">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Attendance Health</p>
-            <div className="w-8 h-8 rounded-lg bg-teal-50 text-odoo-teal flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-950 text-emerald-300 flex items-center justify-center shadow-sm">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-2">{stats.attendance_health_percentage}%</h2>
-          <p className="text-[11px] text-odoo-teal font-medium mt-1">On-time check-in ratio</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-2">{stats?.attendance_health_percentage ?? 100}%</h2>
+          <p className="text-[11px] text-emerald-700 font-medium mt-1">On-time check-in ratio</p>
         </div>
       </div>
 
-      {/* 5. DETAILED ATTENDANCE BREAKDOWN WIDGET (Section B9 in Hackathon PDF) */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-subtle">
+      {/* 6. DETAILED ATTENDANCE BREAKDOWN WIDGET (Section B9 in Hackathon PDF) */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div>
             <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-odoo-purple" />
-              <h3 className="text-sm font-bold text-slate-900">Attendance Compliance & Shift Exception Breakdown</h3>
+              <Clock className="w-4 h-4 text-slate-900" />
+              <h3 className="text-sm font-bold text-slate-900">Attendance Compliance &amp; Shift Exception Breakdown</h3>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
               Granular breakdown of logs, punctuality infractions, overtime, missing check-outs, and manual edits (PDF Section B9).
@@ -340,8 +405,8 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-xs font-semibold text-slate-500">Punctuality Compliance:</span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-              {attendanceOverview.on_time_rate}% On-Time
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              {attendanceOverview?.on_time_rate ?? 100}% On-Time
             </span>
           </div>
         </div>
@@ -350,82 +415,82 @@ export default function DashboardPage() {
         <div className="w-full bg-slate-100 rounded-full h-2.5 mb-4 overflow-hidden flex">
           <div
             className="bg-emerald-500 h-full transition-all duration-500"
-            style={{ width: `${Math.min(attendanceOverview.on_time_rate, 100)}%` }}
-            title={`Present: ${attendanceOverview.present_count}`}
+            style={{ width: `${Math.min(attendanceOverview?.on_time_rate ?? 100, 100)}%` }}
+            title={`Present: ${attendanceOverview?.present_count ?? 0}`}
           />
           <div
             className="bg-amber-400 h-full transition-all duration-500"
             style={{
               width: `${
-                attendanceOverview.total_records > 0
-                  ? (attendanceOverview.late_count / attendanceOverview.total_records) * 100
+                (attendanceOverview?.total_records ?? 0) > 0
+                  ? ((attendanceOverview?.late_count ?? 0) / attendanceOverview.total_records) * 100
                   : 0
               }%`,
             }}
-            title={`Late: ${attendanceOverview.late_count}`}
+            title={`Late: ${attendanceOverview?.late_count ?? 0}`}
           />
           <div
             className="bg-rose-500 h-full transition-all duration-500"
             style={{
               width: `${
-                attendanceOverview.total_records > 0
-                  ? (attendanceOverview.missing_checkout_count / attendanceOverview.total_records) * 100
+                (attendanceOverview?.total_records ?? 0) > 0
+                  ? ((attendanceOverview?.missing_checkout_count ?? 0) / attendanceOverview.total_records) * 100
                   : 0
               }%`,
             }}
-            title={`Missing Checkouts: ${attendanceOverview.missing_checkout_count}`}
+            title={`Missing Checkouts: ${attendanceOverview?.missing_checkout_count ?? 0}`}
           />
         </div>
 
         {/* 6 Exception Metric Tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* Present */}
-          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-center">
+          <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-3 text-center">
             <div className="flex items-center justify-center space-x-1 text-emerald-800 text-xs font-bold">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>Present</span>
             </div>
-            <p className="text-lg font-bold text-emerald-900 mt-1">{attendanceOverview.present_count}</p>
+            <p className="text-lg font-bold text-emerald-900 mt-1">{attendanceOverview?.present_count ?? 0}</p>
             <p className="text-[10px] text-emerald-700">Full shift completed</p>
           </div>
 
           {/* Late */}
-          <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 text-center">
+          <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-3 text-center">
             <div className="flex items-center justify-center space-x-1 text-amber-800 text-xs font-bold">
               <Timer className="w-3.5 h-3.5 text-amber-600" />
               <span>Late Arrivals</span>
             </div>
-            <p className="text-lg font-bold text-amber-900 mt-1">{attendanceOverview.late_count}</p>
+            <p className="text-lg font-bold text-amber-900 mt-1">{attendanceOverview?.late_count ?? 0}</p>
             <p className="text-[10px] text-amber-700">Grace period exceeded</p>
           </div>
 
           {/* Half Day */}
-          <div className="bg-sky-50/70 border border-sky-200 rounded-xl p-3 text-center">
+          <div className="bg-sky-50/50 border border-sky-200 rounded-xl p-3 text-center">
             <div className="flex items-center justify-center space-x-1 text-sky-800 text-xs font-bold">
               <Clock className="w-3.5 h-3.5 text-sky-600" />
               <span>Half Day</span>
             </div>
-            <p className="text-lg font-bold text-sky-900 mt-1">{attendanceOverview.half_day_count}</p>
+            <p className="text-lg font-bold text-sky-900 mt-1">{attendanceOverview?.half_day_count ?? 0}</p>
             <p className="text-[10px] text-sky-700">&lt; 5.0 hours worked</p>
           </div>
 
           {/* Overtime */}
-          <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-3 text-center">
-            <div className="flex items-center justify-center space-x-1 text-odoo-purple text-xs font-bold">
-              <TrendingUp className="w-3.5 h-3.5 text-odoo-purple" />
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+            <div className="flex items-center justify-center space-x-1 text-slate-900 text-xs font-bold">
+              <TrendingUp className="w-3.5 h-3.5 text-slate-700" />
               <span>Overtime</span>
             </div>
-            <p className="text-lg font-bold text-purple-900 mt-1">{attendanceOverview.overtime_count}</p>
-            <p className="text-[10px] text-purple-700">Extra hours logged</p>
+            <p className="text-lg font-bold text-slate-900 mt-1">{attendanceOverview?.overtime_count ?? 0}</p>
+            <p className="text-[10px] text-slate-500">Extra hours logged</p>
           </div>
 
           {/* Missing Checkouts */}
-          <div className="bg-rose-50/70 border border-rose-200 rounded-xl p-3 text-center">
+          <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-3 text-center">
             <div className="flex items-center justify-center space-x-1 text-rose-800 text-xs font-bold">
               <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
               <span>Missing Check-out</span>
             </div>
-            <p className="text-lg font-bold text-rose-900 mt-1">{attendanceOverview.missing_checkout_count}</p>
+            <p className="text-lg font-bold text-rose-900 mt-1">{attendanceOverview?.missing_checkout_count ?? 0}</p>
             <p className="text-[10px] text-rose-700">Open sessions flagged</p>
           </div>
 
@@ -435,22 +500,22 @@ export default function DashboardPage() {
               <Edit3 className="w-3.5 h-3.5 text-slate-600" />
               <span>Manual Edits</span>
             </div>
-            <p className="text-lg font-bold text-slate-900 mt-1">{attendanceOverview.manual_edits_count}</p>
+            <p className="text-lg font-bold text-slate-900 mt-1">{attendanceOverview?.manual_edits_count ?? 0}</p>
             <p className="text-[10px] text-slate-500">Supervisor overrides</p>
           </div>
         </div>
       </div>
 
-      {/* 6. Charts: Department Costs & Monthly Trends */}
+      {/* 7. Charts: Department Costs & Monthly Trends (High Contrast Slate & Dark Theme) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Department Salary Expenditure (Bar Chart) */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-subtle">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">Salary Expenditure by Department</h3>
               <p className="text-xs text-slate-400">Monthly contract wage commitments per business unit</p>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">INR (₹)</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">INR (₹)</span>
           </div>
 
           <div className="h-64 w-full">
@@ -464,20 +529,20 @@ export default function DashboardPage() {
                   labelFormatter={(lbl) => `Department: ${lbl}`}
                   contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
                 />
-                <Bar dataKey="total_salary_expenditure" fill="#714B67" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total_salary_expenditure" fill="#0f172a" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Monthly Net Salary Trend (Area Chart) */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-subtle">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">Monthly Payroll Payout Trend</h3>
               <p className="text-xs text-slate-400">Net salary disbursed across historical payroll runs</p>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-purple-50 text-odoo-purple">Historical</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">Historical Runs</span>
           </div>
 
           <div className="h-64 w-full">
@@ -485,8 +550,8 @@ export default function DashboardPage() {
               <AreaChart data={monthlyTrends} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                 <defs>
                   <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#017E84" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#017E84" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="#0f172a" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#0f172a" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -496,7 +561,7 @@ export default function DashboardPage() {
                   formatter={(val: any) => [formatCurrency(Number(val)), "Net Disbursed"]}
                   contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
                 />
-                <Area type="monotone" dataKey="net_salary" stroke="#017E84" strokeWidth={2.5} fillOpacity={1} fill="url(#colorNet)" />
+                <Area type="monotone" dataKey="net_salary" stroke="#0f172a" strokeWidth={2.5} fillOpacity={1} fill="url(#colorNet)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

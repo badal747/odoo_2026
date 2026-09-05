@@ -4,6 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import RouteGuard from "@/components/RouteGuard";
+import { useAuth } from "@/lib/auth-context";
 
 export default function AppLayoutShell({
   children,
@@ -11,14 +12,13 @@ export default function AppLayoutShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user, loading } = useAuth();
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
-  if (isAuthPage) {
-    return (
-      <RouteGuard>
-        {children}
-      </RouteGuard>
-    );
+  // If on login/register page, or while checking session, or if unauthenticated:
+  // Render RouteGuard directly to prevent flashing navbar/footer during redirection
+  if (isAuthPage || loading || !user) {
+    return <RouteGuard>{children}</RouteGuard>;
   }
 
   return (
@@ -29,7 +29,7 @@ export default function AppLayoutShell({
       </main>
       <footer className="border-t border-slate-200 bg-white py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
-          PeoplePay360 &copy; 2026 &bull; Integrated HR & Payroll Platform &bull; Built with FastAPI, MongoDB Atlas, Next.js & Three.js
+          PeoplePay360 &copy; 2026 &bull; Integrated HR & Payroll Platform &bull; Built with FastAPI, MongoDB Atlas, Next.js
         </div>
       </footer>
     </>

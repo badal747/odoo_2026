@@ -13,9 +13,11 @@ import {
   BarChart3,
   LogOut,
   User as UserIcon,
+  Compass,
 } from "lucide-react";
 import { useAuth, UserRole } from "@/lib/auth-context";
 import api from "@/lib/api";
+import DemoTourModal from "@/components/DemoTourModal";
 
 interface NavItem {
   label: string;
@@ -39,6 +41,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const [checkedIn, setCheckedIn] = useState(false);
   const [attendanceMsg, setAttendanceMsg] = useState("");
+  const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
 
   // Don't render navigation menus on the login screen
   if (pathname === "/login") {
@@ -137,6 +140,16 @@ export default function Navbar() {
 
           {/* Right Action Tools & User Profile */}
           <div className="flex items-center space-x-3">
+            {/* Hackathon Demo Tour Guide Button */}
+            <button
+              onClick={() => setIsDemoTourOpen(true)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100/80 text-amber-900 hover:bg-amber-200/80 border border-amber-300 shadow-sm transition-all animate-pulse hover:animate-none"
+              title="Hackathon Demo & Scenario Guide"
+            >
+              <Compass className="w-3.5 h-3.5 text-amber-700" />
+              <span>Demo Guide</span>
+            </button>
+
             {/* Quick Attendance Check-in Button */}
             {user?.employee_id && (
               <button
@@ -183,6 +196,7 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+      <DemoTourModal isOpen={isDemoTourOpen} onClose={() => setIsDemoTourOpen(false)} />
     </header>
   );
 }

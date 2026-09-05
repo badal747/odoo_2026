@@ -3,9 +3,11 @@ import os
 import certifi
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
+import pytest
 
 load_dotenv()
 
+@pytest.mark.anyio
 async def test_connection():
     uri = os.getenv("MONGODB_URL")
     print(f"Connecting to MongoDB Atlas...")

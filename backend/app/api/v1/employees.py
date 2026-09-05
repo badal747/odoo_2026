@@ -110,6 +110,25 @@ async def update_employee(id: str, req: EmployeeCreate):
     await emp.save()
     return {"id": str(emp.id), "message": "Employee updated successfully"}
 
+class QuickBankUpdate(BaseModel):
+    bank_name: str
+    account_number: str
+    pan_or_tax_id: str
+
+@router.patch("/{id}/bank-details", dependencies=[Depends(require_roles(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.HR_PAYROLL_MANAGER))])
+async def update_employee_bank_details(id: str, req: QuickBankUpdate):
+    emp = await Employee.get(id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    emp.bank_details = BankDetails(
+        bank_name=req.bank_name,
+        account_number=req.account_number,
+        pan_or_tax_id=req.pan_or_tax_id
+    )
+    emp.updated_at = datetime.utcnow()
+    await emp.save()
+    return {"id": str(emp.id), "message": "Bank details updated successfully"}
+
 @router.get("/{id}/smart-counts", dependencies=[Depends(get_current_user)])
 async def get_employee_smart_counts(id: str):
     """

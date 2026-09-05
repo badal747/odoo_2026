@@ -30,11 +30,17 @@ async def list_contracts(employee_id: Optional[str] = None, status: Optional[str
     if status:
         query["status"] = status
 
-    contracts = await Contract.find(query).to_list()
+    import asyncio
+    contracts, employees, departments, structures = await asyncio.gather(
+        Contract.find(query).to_list(),
+        Employee.find_all().to_list(),
+        Department.find_all().to_list(),
+        SalaryStructure.find_all().to_list()
+    )
     
-    emp_map = {str(e.id): f"{e.first_name} {e.last_name}" for e in await Employee.find_all().to_list()}
-    dept_map = {str(d.id): d.name for d in await Department.find_all().to_list()}
-    struct_map = {str(s.id): s.name for s in await SalaryStructure.find_all().to_list()}
+    emp_map = {str(e.id): f"{e.first_name} {e.last_name}" for e in employees}
+    dept_map = {str(d.id): d.name for d in departments}
+    struct_map = {str(s.id): s.name for s in structures}
 
     res = []
     for c in contracts:

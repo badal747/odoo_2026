@@ -70,24 +70,27 @@ export default function Navbar() {
 
   const handleQuickAttendance = async () => {
     if (!user) return;
+    const empId = user.employee_id;
+    if (!empId) {
+      setAttendanceMsg("No linked employee profile");
+      setTimeout(() => setAttendanceMsg(""), 3000);
+      return;
+    }
+    const previousState = checkedIn;
+    // Instant 0ms optimistic visual response
+    setCheckedIn(!previousState);
+    setAttendanceMsg(!previousState ? "Checked in (updating...)" : "Checked out (updating...)");
     try {
-      const empId = user.employee_id;
-      if (!empId) {
-        setAttendanceMsg("No linked employee profile");
-        return;
-      }
-      if (!checkedIn) {
+      if (!previousState) {
         await api.post("/attendance/check-in", { employee_id: empId });
-        setCheckedIn(true);
         setAttendanceMsg("Checked in at " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } else {
         await api.post("/attendance/check-out", { employee_id: empId });
-        setCheckedIn(false);
         setAttendanceMsg("Checked out successfully");
       }
     } catch (err: any) {
-      setAttendanceMsg(err?.response?.data?.detail || "Attendance recorded");
-      setCheckedIn(!checkedIn);
+      setCheckedIn(previousState);
+      setAttendanceMsg(err?.response?.data?.detail || "Attendance updated");
     }
     setTimeout(() => setAttendanceMsg(""), 4000);
   };
@@ -124,7 +127,8 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  prefetch={true}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold active:scale-95 transition-all duration-75 ${
                     isActive
                       ? "bg-black text-white shadow-sm"
                       : "text-slate-600 hover:text-black hover:bg-slate-100/80 font-medium"

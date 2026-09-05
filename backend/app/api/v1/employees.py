@@ -47,7 +47,12 @@ async def list_employees(
     if status:
         query["status"] = status
     
-    employees = await Employee.find(query).to_list()
+    import asyncio
+    employees, depts, positions = await asyncio.gather(
+        Employee.find(query).to_list(),
+        Department.find_all().to_list(),
+        JobPosition.find_all().to_list()
+    )
     
     # In-memory search filter if provided
     if search:
@@ -58,8 +63,8 @@ async def list_employees(
         ]
         
     # Enrich with department and position titles
-    dept_map = {str(d.id): d.name for d in await Department.find_all().to_list()}
-    pos_map = {str(p.id): p.title for p in await JobPosition.find_all().to_list()}
+    dept_map = {str(d.id): d.name for d in depts}
+    pos_map = {str(p.id): p.title for p in positions}
     
     res = []
     for emp in employees:

@@ -1,7 +1,9 @@
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query
 from app.api.deps import get_current_user
+from app.core.cache import fast_cache
 from app.models.models import (
     Payrun, Payslip, Employee, Department, Attendance,
     TimeOffRequest, Contract, AttendanceStatus, EmploymentType
@@ -13,8 +15,18 @@ router = APIRouter(prefix="/dashboard", tags=["Payroll & HR Dashboard"], depende
 async def get_dashboard_stats(
     department_id: Optional[str] = None,
     employment_type: Optional[str] = None,
-    period: Optional[str] = None
+    period: Optional[str] = None,
+    fresh: bool = False
 ):
+    cache_key = f"dashboard:stats:{department_id}:{employment_type}:{period}"
+    if not fresh:
+        cached = fast_cache.get(cache_key)
+        if cached:
+            return cached
+
+    now = datetime.utcnow()
+    thirty_days_ago = now - timedelta(days=30)
+
     # Base employee filter
     emp_query = {"status": "ACTIVE"}
     if department_id and department_id != "ALL":
@@ -22,60 +34,69 @@ async def get_dashboard_stats(
     if employment_type and employment_type != "ALL":
         emp_query["employment_type"] = employment_type
 
-    filtered_emps = await Employee.find(emp_query).to_list()
+    # Parallel Phase 1: Base collections
+    filtered_emps, paid_payruns, all_payruns = await asyncio.gather(
+        Employee.find(emp_query).to_list(),
+        Payrun.find(Payrun.status == "PAID").to_list(),
+        Payrun.find_all().to_list(),
+    )
     emp_ids = [str(e.id) for e in filtered_emps]
     active_employees_count = len(filtered_emps)
 
-    # Filtered contracts
+    # Dependent filters
     con_query = {"status": "RUNNING"}
     if department_id and department_id != "ALL":
         con_query["department_id"] = department_id
     if emp_ids:
         con_query["employee_id"] = {"$in": emp_ids}
 
-    contracts = await Contract.find(con_query).to_list() if emp_ids else []
-    avg_wage = (sum(c.wage for c in contracts) / len(contracts)) if contracts else 0.0
-
-    # Total net paid & payslips count
-    paid_payruns = await Payrun.find(Payrun.status == "PAID").to_list()
-    if period and period != "ALL":
-        # Period string format YYYY-MM
-        paid_payruns = [
-            p for p in paid_payruns
-            if p.period_start.strftime("%Y-%m") == period
-        ]
-
-    total_net_paid = sum(p.total_net for p in paid_payruns)
-    total_payslips = sum(p.total_employees for p in paid_payruns) if period and period != "ALL" else await Payslip.count()
-
-    # Approved leave days
     leave_query = {"status": "APPROVED"}
     if emp_ids:
         leave_query["employee_id"] = {"$in": emp_ids}
-    approved_leaves = await TimeOffRequest.find(leave_query).to_list() if emp_ids else []
-    total_leave_days = sum(l.duration_units for l in approved_leaves)
 
-    # Attendance Health: on-time vs late/absent (last 30 days)
-    now = datetime.utcnow()
-    thirty_days_ago = now - timedelta(days=30)
     att_query = {"date": {"$gte": thirty_days_ago}}
     if emp_ids:
         att_query["employee_id"] = {"$in": emp_ids}
-    
-    attendances = await Attendance.find(att_query).to_list() if emp_ids else []
+
+    async def get_empty():
+        return []
+
+    contracts_task = Contract.find(con_query).to_list() if emp_ids else get_empty()
+    leaves_task = TimeOffRequest.find(leave_query).to_list() if emp_ids else get_empty()
+    att_task = Attendance.find(att_query).to_list() if emp_ids else get_empty()
+    slip_task = Payslip.count() if not (period and period != "ALL") else get_empty()
+
+    # Parallel Phase 2: Contracts, Leaves, Attendance, and Payslips
+    contracts, approved_leaves, attendances, total_payslip_count = await asyncio.gather(
+        contracts_task,
+        leaves_task,
+        att_task,
+        slip_task
+    )
+
+    avg_wage = (sum(c.wage for c in contracts) / len(contracts)) if contracts else 0.0
+
+    if period and period != "ALL":
+        paid_payruns = [
+            p for p in paid_payruns
+            if p.period_start and p.period_start.strftime("%Y-%m") == period
+        ]
+
+    total_net_paid = sum(p.total_net for p in paid_payruns)
+    total_payslips = sum(p.total_employees for p in paid_payruns) if period and period != "ALL" else total_payslip_count
+    total_leave_days = sum(l.duration_units for l in approved_leaves)
+
     total_att = len(attendances)
     on_time = len([a for a in attendances if a.status == AttendanceStatus.PRESENT])
     attendance_health = round((on_time / total_att * 100), 1) if total_att > 0 else 100.0
 
-    # Dynamic real-time available periods from actual Payruns in MongoDB
-    all_payruns = await Payrun.find_all().to_list()
     available_periods = sorted(list({p.period_start.strftime("%Y-%m") for p in all_payruns if p.period_start}), reverse=True)
     if not available_periods:
         available_periods = [
             (now - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(4)
         ]
 
-    return {
+    result = {
         "total_net_paid": round(total_net_paid, 2),
         "total_payslips_generated": total_payslips,
         "average_salary": round(avg_wage, 2),
@@ -85,20 +106,25 @@ async def get_dashboard_stats(
         "filtered_employees_count": active_employees_count,
         "available_periods": available_periods,
     }
+    fast_cache.set(cache_key, result, ttl=4.0)
+    return result
 
 @router.get("/attendance-overview")
-async def get_attendance_overview(department_id: Optional[str] = None):
+async def get_attendance_overview(department_id: Optional[str] = None, fresh: bool = False):
     """
     Detailed attendance breakdown (Section B9 of Hackathon PDF):
     Present, Late, Half-day, Overtime, Missing check-outs, and Manual Edits.
     """
-    emp_ids = None
+    cache_key = f"dashboard:attendance-overview:{department_id}"
+    if not fresh:
+        cached = fast_cache.get(cache_key)
+        if cached:
+            return cached
+
+    query = {}
     if department_id and department_id != "ALL":
         emps = await Employee.find(Employee.department_id == department_id).to_list()
         emp_ids = [str(e.id) for e in emps]
-
-    query = {}
-    if emp_ids is not None:
         query["employee_id"] = {"$in": emp_ids}
 
     records = await Attendance.find(query).to_list()
@@ -113,7 +139,7 @@ async def get_attendance_overview(department_id: Optional[str] = None):
 
     rate = round((present / total * 100), 1) if total > 0 else 100.0
 
-    return {
+    result = {
         "total_records": total,
         "present_count": present,
         "late_count": late,
@@ -123,38 +149,46 @@ async def get_attendance_overview(department_id: Optional[str] = None):
         "manual_edits_count": manual_edits,
         "on_time_rate": rate
     }
+    fast_cache.set(cache_key, result, ttl=4.0)
+    return result
 
 @router.get("/department-costs")
-async def get_department_costs(employment_type: Optional[str] = None):
+async def get_department_costs(employment_type: Optional[str] = None, fresh: bool = False):
     """
-    Returns salary expenditure and headcount by department with optional employee type filter.
+    Blazing fast single-pass salary expenditure & headcount aggregation.
+    Replaces 10+ sequential DB roundtrips with 1 parallel fetch.
     """
-    departments = await Department.find_all().to_list()
+    cache_key = f"dashboard:dept-costs:{employment_type}"
+    if not fresh:
+        cached = fast_cache.get(cache_key)
+        if cached:
+            return cached
+
+    departments, all_emps, all_contracts = await asyncio.gather(
+        Department.find_all().to_list(),
+        Employee.find({"status": "ACTIVE"}).to_list(),
+        Contract.find({"status": "RUNNING"}).to_list()
+    )
+
+    if employment_type and employment_type != "ALL":
+        all_emps = [e for e in all_emps if e.employment_type == employment_type]
+
+    emp_dept_map = {str(e.id): e.department_id for e in all_emps}
+    dept_emps_count = {}
+    for e in all_emps:
+        dept_emps_count[e.department_id] = dept_emps_count.get(e.department_id, 0) + 1
+
+    dept_contract_wages = {}
+    for c in all_contracts:
+        if c.employee_id in emp_dept_map:
+            dept_id = emp_dept_map[c.employee_id]
+            dept_contract_wages[dept_id] = dept_contract_wages.get(dept_id, 0.0) + c.wage
+
     res = []
-    
     for dept in departments:
         dept_id = str(dept.id)
-        
-        emp_filter = {
-            "department_id": dept_id,
-            "status": "ACTIVE"
-        }
-        if employment_type and employment_type != "ALL":
-            emp_filter["employment_type"] = employment_type
-
-        dept_emps = await Employee.find(emp_filter).to_list()
-        dept_emp_ids = [str(e.id) for e in dept_emps]
-        headcount = len(dept_emps)
-
-        if dept_emp_ids:
-            contracts = await Contract.find({
-                "department_id": dept_id,
-                "status": "RUNNING",
-                "employee_id": {"$in": dept_emp_ids}
-            }).to_list()
-            total_salary_expense = sum(c.wage for c in contracts)
-        else:
-            total_salary_expense = 0.0
+        headcount = dept_emps_count.get(dept_id, 0)
+        total_salary_expense = dept_contract_wages.get(dept_id, 0.0)
 
         res.append({
             "department_id": dept_id,
@@ -165,17 +199,24 @@ async def get_department_costs(employment_type: Optional[str] = None):
             "avg_salary": round(total_salary_expense / headcount, 2) if headcount > 0 else 0.0
         })
 
+    fast_cache.set(cache_key, res, ttl=4.0)
     return res
 
 @router.get("/monthly-trends")
-async def get_monthly_trends():
+async def get_monthly_trends(fresh: bool = False):
     """
-    Monthly salary expenditure trend using historical Payruns.
+    Monthly salary expenditure trend using historical Payruns with caching.
     """
+    cache_key = "dashboard:monthly-trends"
+    if not fresh:
+        cached = fast_cache.get(cache_key)
+        if cached:
+            return cached
+
     payruns = await Payrun.find_all().sort("period_start").to_list()
     res = []
     for p in payruns:
-        month_label = p.period_start.strftime("%b %Y")
+        month_label = p.period_start.strftime("%b %Y") if p.period_start else "N/A"
         res.append({
             "period": month_label,
             "gross_salary": p.total_gross,
@@ -183,32 +224,35 @@ async def get_monthly_trends():
             "deductions": p.total_deductions,
             "employees_count": p.total_employees
         })
+
+    fast_cache.set(cache_key, res, ttl=4.0)
     return res
 
 @router.get("/alerts")
-async def get_operational_alerts():
+async def get_operational_alerts(fresh: bool = False):
     """
-    Returns actionable alerts:
-    - Pending time off requests
-    - Expiring contracts in next 30 days
-    - Draft payruns needing attention
-    - Missing bank details count
+    Returns actionable alerts running all checks concurrently via asyncio.gather.
     """
+    cache_key = "dashboard:alerts"
+    if not fresh:
+        cached = fast_cache.get(cache_key)
+        if cached:
+            return cached
+
     now = datetime.utcnow()
     thirty_days_later = now + timedelta(days=30)
 
-    pending_leaves = await TimeOffRequest.find(TimeOffRequest.status == "PENDING").count()
-    
-    expiring_contracts = await Contract.find(
-        Contract.status == "RUNNING",
-        Contract.end_date != None,
-        Contract.end_date <= thirty_days_later
-    ).count()
+    pending_leaves, expiring_contracts, draft_payruns, all_emps = await asyncio.gather(
+        TimeOffRequest.find(TimeOffRequest.status == "PENDING").count(),
+        Contract.find(
+            Contract.status == "RUNNING",
+            Contract.end_date != None,
+            Contract.end_date <= thirty_days_later
+        ).count(),
+        Payrun.find(Payrun.status == "DRAFT").count(),
+        Employee.find(Employee.status == "ACTIVE").to_list()
+    )
 
-    draft_payruns = await Payrun.find(Payrun.status == "DRAFT").count()
-
-    # Missing bank accounts
-    all_emps = await Employee.find(Employee.status == "ACTIVE").to_list()
     missing_bank = len([e for e in all_emps if not e.bank_details or not e.bank_details.account_number])
 
     alerts = []
@@ -221,4 +265,6 @@ async def get_operational_alerts():
     if missing_bank > 0:
         alerts.append({"type": "error", "message": f"{missing_bank} active employees have missing bank account numbers."})
 
+    fast_cache.set(cache_key, alerts, ttl=4.0)
     return alerts
+

@@ -29,3 +29,40 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* =========================================================
+   INSTANT ULTRA-RESPONSIVE BUTTON INTERACTIONS
+   Triggers instant tactile micro-press in 0ms on mouse/touch down
+   ========================================================= */
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 50ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 50ms ease,
+              background-color 75ms ease,
+              border-color 75ms ease,
+              box-shadow 75ms ease !important;
+}
+
+button:active,
+[role="button"]:active,
+input[type="button"]:active,
+input[type="submit"]:active {
+  transform: scale(0.96) !important;
+  filter: brightness(0.93);
+}
+
+button:disabled,
+button[disabled],
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+  transform: none !important;
+  opacity: 0.55 !important;
+  pointer-events: none;
+}
+

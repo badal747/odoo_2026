@@ -132,8 +132,12 @@ async def create_payrun_batch(req: CreateBatchRequest):
 # ----------------- PAYRUN HUB ACTIONS -----------------
 @router.get("")
 async def list_payruns():
-    payruns = await Payrun.find_all().sort("-created_at").to_list()
-    struct_map = {str(s.id): s.name for s in await SalaryStructure.find_all().to_list()}
+    import asyncio
+    payruns, structures = await asyncio.gather(
+        Payrun.find_all().sort("-created_at").to_list(),
+        SalaryStructure.find_all().to_list()
+    )
+    struct_map = {str(s.id): s.name for s in structures}
 
     res = []
     for p in payruns:
@@ -145,14 +149,19 @@ async def list_payruns():
 
 @router.get("/{id}")
 async def get_payrun(id: str):
+    import asyncio
     payrun = await Payrun.get(id)
     if not payrun:
         raise HTTPException(status_code=404, detail="Payrun not found")
 
-    struct = await SalaryStructure.get(payrun.salary_structure_id)
-    payslips = await Payslip.find(Payslip.payrun_id == id).to_list()
-    emp_map = {str(e.id): e for e in await Employee.find_all().to_list()}
-    contract_map = {str(c.id): c for c in await Contract.find_all().to_list()}
+    struct, payslips, employees, contracts = await asyncio.gather(
+        SalaryStructure.get(payrun.salary_structure_id),
+        Payslip.find(Payslip.payrun_id == id).to_list(),
+        Employee.find_all().to_list(),
+        Contract.find_all().to_list()
+    )
+    emp_map = {str(e.id): e for e in employees}
+    contract_map = {str(c.id): c for c in contracts}
 
     sl_res = []
     for s in payslips:

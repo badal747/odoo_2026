@@ -3,6 +3,7 @@ from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from app.core.config import settings
+from app.core.cache import fast_cache
 from app.models.models import User, UserRole
 
 security_bearer = HTTPBearer(auto_error=False)
@@ -31,9 +32,15 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired or is invalid")
 
+    cache_key = f"auth:user:{user_id}"
+    cached_user = fast_cache.get(cache_key)
+    if cached_user:
+        return cached_user
+
     user = await User.get(user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    fast_cache.set(cache_key, user, ttl=60.0)
     return user
 
 def require_roles(*allowed_roles: UserRole):

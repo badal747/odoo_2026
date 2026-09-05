@@ -41,8 +41,12 @@ async def list_attendances(
         e = datetime.fromisoformat(end_date)
         query["date"] = {"$gte": s, "$lte": e}
 
-    attendances = await Attendance.find(query).sort("-date").to_list()
-    emp_map = {str(e.id): f"{e.first_name} {e.last_name}" for e in await Employee.find_all().to_list()}
+    import asyncio
+    attendances, employees = await asyncio.gather(
+        Attendance.find(query).sort("-date").to_list(),
+        Employee.find_all().to_list()
+    )
+    emp_map = {str(e.id): f"{e.first_name} {e.last_name}" for e in employees}
 
     res = []
     for a in attendances:

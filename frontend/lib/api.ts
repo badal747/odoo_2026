@@ -9,10 +9,10 @@ export const api = axios.create({
   },
 });
 
-// Attach JWT token from localStorage if available
+// Attach JWT token from sessionStorage if available
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("peoplepay_token");
+    const token = sessionStorage.getItem("peoplepay_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -26,6 +26,8 @@ api.interceptors.response.use(
   (error) => {
     if (typeof window !== "undefined" && error?.response?.status === 401) {
       if (!window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/register")) {
+        sessionStorage.removeItem("peoplepay_token");
+        sessionStorage.removeItem("peoplepay_user");
         localStorage.removeItem("peoplepay_token");
         localStorage.removeItem("peoplepay_user");
         window.location.href = "/login";
@@ -36,7 +38,7 @@ api.interceptors.response.use(
 );
 
 export function getPayslipPdfUrl(slipId: string, download: boolean = false): string {
-  const token = typeof window !== "undefined" ? localStorage.getItem("peoplepay_token") : "";
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("peoplepay_token") : "";
   const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
   const params = new URLSearchParams();
   if (token) params.set("token", token);

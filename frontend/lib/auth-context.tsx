@@ -50,17 +50,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Restore session from localStorage on mount
-    const savedToken = localStorage.getItem("peoplepay_token");
-    const savedUser = localStorage.getItem("peoplepay_user");
+    // Purge any legacy persistent localStorage to prevent automatic re-login across browser closes
+    try {
+      localStorage.removeItem("peoplepay_token");
+      localStorage.removeItem("peoplepay_user");
+      localStorage.removeItem("peoplepay_role");
+      localStorage.removeItem("peoplepay_name");
+    } catch (e) {
+      // Ignore if localStorage blocked
+    }
+
+    // Restore session ONLY from current active sessionStorage
+    const savedToken = sessionStorage.getItem("peoplepay_token");
+    const savedUser = sessionStorage.getItem("peoplepay_user");
 
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
       } catch {
-        localStorage.removeItem("peoplepay_token");
-        localStorage.removeItem("peoplepay_user");
+        sessionStorage.removeItem("peoplepay_token");
+        sessionStorage.removeItem("peoplepay_user");
       }
     }
     setLoading(false);
@@ -82,10 +92,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(access_token);
     setUser(userData);
 
-    localStorage.setItem("peoplepay_token", access_token);
-    localStorage.setItem("peoplepay_user", JSON.stringify(userData));
-    localStorage.setItem("peoplepay_role", role);
-    localStorage.setItem("peoplepay_name", `${first_name || ""} ${last_name || ""}`.trim() || res.data.email);
+    // Save strictly to sessionStorage for current tab session only
+    sessionStorage.setItem("peoplepay_token", access_token);
+    sessionStorage.setItem("peoplepay_user", JSON.stringify(userData));
+    sessionStorage.setItem("peoplepay_role", role);
+    sessionStorage.setItem("peoplepay_name", `${first_name || ""} ${last_name || ""}`.trim() || res.data.email);
 
     router.push("/");
   };
@@ -106,10 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(access_token);
     setUser(userData);
 
-    localStorage.setItem("peoplepay_token", access_token);
-    localStorage.setItem("peoplepay_user", JSON.stringify(userData));
-    localStorage.setItem("peoplepay_role", role);
-    localStorage.setItem("peoplepay_name", `${first_name || ""} ${last_name || ""}`.trim() || res.data.email);
+    // Save strictly to sessionStorage for current tab session only
+    sessionStorage.setItem("peoplepay_token", access_token);
+    sessionStorage.setItem("peoplepay_user", JSON.stringify(userData));
+    sessionStorage.setItem("peoplepay_role", role);
+    sessionStorage.setItem("peoplepay_name", `${first_name || ""} ${last_name || ""}`.trim() || res.data.email);
 
     router.push("/");
   };
@@ -117,10 +129,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setToken(null);
     setUser(null);
+    sessionStorage.removeItem("peoplepay_token");
+    sessionStorage.removeItem("peoplepay_user");
+    sessionStorage.removeItem("peoplepay_role");
+    sessionStorage.removeItem("peoplepay_name");
     localStorage.removeItem("peoplepay_token");
     localStorage.removeItem("peoplepay_user");
-    localStorage.removeItem("peoplepay_role");
-    localStorage.removeItem("peoplepay_name");
     router.push("/login");
   };
 

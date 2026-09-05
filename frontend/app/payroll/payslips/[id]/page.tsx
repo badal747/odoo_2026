@@ -14,7 +14,7 @@ import {
   DollarSign,
   UserCheck
 } from "lucide-react";
-import api from "@/lib/api";
+import api, { getPayslipPdfUrl, downloadPayslipPdfBlob } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function PayslipDetailPage() {
@@ -23,6 +23,21 @@ export default function PayslipDetailPage() {
 
   const [payslip, setPayslip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!payslip) return;
+    try {
+      setDownloading(true);
+      const safeNum = (payslip.payslip_number || id).replace(/\//g, "_");
+      await downloadPayslipPdfBlob(payslip.id, `Payslip_${safeNum}.pdf`);
+    } catch (err) {
+      console.error("Blob download failed, opening direct URL:", err);
+      window.open(getPayslipPdfUrl(payslip.id, true), "_blank");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     if (id) fetchPayslip();
@@ -79,16 +94,29 @@ export default function PayslipDetailPage() {
           </div>
         </div>
 
-        {/* PRINT / DOWNLOAD PDF BUTTON (ReportLab FastAPI endpoint) */}
-        <a
-          href={`http://localhost:8000/api/v1/payslips/${payslip.id}/pdf`}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center space-x-2 px-4 py-2 bg-odoo-purple hover:bg-odoo-purpleHover text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Print / Download PDF Payslip</span>
-        </a>
+        {/* PRINT / PREVIEW & DOWNLOAD PDF BUTTONS */}
+        <div className="flex items-center space-x-2">
+          <a
+            href={getPayslipPdfUrl(payslip.id, false)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center space-x-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-sm transition-all"
+            title="Open PDF Preview in new tab"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-600" />
+            <span>Print / Preview</span>
+          </a>
+
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex items-center space-x-2 px-4 py-2 bg-black hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+            title="Download PDF directly to your device"
+          >
+            <Download className={`w-3.5 h-3.5 ${downloading ? 'animate-spin' : ''}`} />
+            <span>{downloading ? "Downloading..." : "Download PDF"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Warnings Banner if any */}

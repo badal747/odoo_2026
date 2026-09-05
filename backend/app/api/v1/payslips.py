@@ -28,9 +28,10 @@ async def get_payslip(id: str):
     return d
 
 @router.get("/{id}/pdf")
-async def download_payslip_pdf(id: str):
+async def download_payslip_pdf(id: str, download: bool = False):
     """
     Generates and streams a high-resolution corporate PDF payslip.
+    Supports both inline viewing (default) and direct attachment download (?download=true).
     """
     slip = await Payslip.get(id)
     if not slip:
@@ -42,10 +43,16 @@ async def download_payslip_pdf(id: str):
         raise HTTPException(status_code=400, detail="Incomplete employee or contract data to generate PDF")
 
     pdf_stream = generate_payslip_pdf(payslip=slip, employee=emp, contract=contract)
-    filename = f"Payslip_{slip.payslip_number.replace('/', '_')}.pdf"
+    safe_slip_num = slip.payslip_number.replace('/', '_')
+    filename = f"Payslip_{safe_slip_num}.pdf"
+    disposition = "attachment" if download else "inline"
 
     return StreamingResponse(
         pdf_stream,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={filename}"}
+        headers={
+            "Content-Disposition": f"{disposition}; filename={filename}",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
     )
+

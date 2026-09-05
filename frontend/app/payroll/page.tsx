@@ -20,9 +20,10 @@ import {
   Sparkles,
   FileCheck,
   Check,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Download
 } from "lucide-react";
-import api from "@/lib/api";
+import api, { getPayslipPdfUrl, downloadPayslipPdfBlob } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import confetti from "canvas-confetti";
 
@@ -514,14 +515,28 @@ export default function PayrollPage() {
                             <ExternalLink className="w-3 h-3" />
                           </Link>
                           <a
-                            href={`http://localhost:8000/api/v1/payslips/${slip.id}/pdf`}
+                            href={getPayslipPdfUrl(slip.id, false)}
                             target="_blank"
                             rel="noreferrer"
-                            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 inline-block align-middle"
-                            title="Print PDF"
+                            className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 inline-block align-middle transition-colors"
+                            title="Print / Preview PDF"
                           >
                             <Printer className="w-3.5 h-3.5" />
                           </a>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const safeNum = (slip.payslip_number || slip.id).replace(/\//g, "_");
+                                await downloadPayslipPdfBlob(slip.id, `Payslip_${safeNum}.pdf`);
+                              } catch (err) {
+                                window.open(getPayslipPdfUrl(slip.id, true), "_blank");
+                              }
+                            }}
+                            className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 inline-block align-middle transition-colors"
+                            title="Download PDF File"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                     ))}

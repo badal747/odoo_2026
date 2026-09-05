@@ -5,7 +5,7 @@ import { Sparkles, CreditCard, BarChart3, Clock, ShieldCheck, Trophy } from "luc
 
 export const SLIDES = [
   {
-    image: "/hr_payroll_hero.jpg",
+    image: "/hero_slide_1.jpg",
     icon: CreditCard,
     tag: "STRENGTH & PAYROLL PRECISION",
     title: "Transform Your Workforce with Intelligent Automation",
